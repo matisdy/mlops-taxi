@@ -9,7 +9,7 @@ from drift import make_reference, psi, reference_bins
 def _data():
     rng = np.random.default_rng(0)
     ref_values = rng.poisson(20, 5000)
-    sample = rng.poisson(20, 480)
+    sample = rng.choice(ref_values, 480)
     return ref_values, sample
 
 
