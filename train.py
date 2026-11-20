@@ -32,8 +32,11 @@ def fit(params: dict, df: pd.DataFrame) -> Pipeline:
     # L1 train.py l. 33-53, as a regressor trained on the "train" rows (spec section 5)
     train = df[df["split"] == "train"]
     X, y = train[params["features"]], train[params["target"]]
+    # sparse_output=False: deviation from spec section 5, accepted on 2026-11-20. With 20 zones the
+    # ColumnTransformer output is sparse (density at most 6/25 = 0.24, under its sparse_threshold of 0.3)
+    # and the regressor refuses it: "TypeError: Sparse data was passed for X, but dense data is required".
     pre = ColumnTransformer(
-        [("zone", OneHotEncoder(handle_unknown="ignore"), ["zone"])],
+        [("zone", OneHotEncoder(handle_unknown="ignore", sparse_output=False), ["zone"])],
         remainder="passthrough",
     )
     reg = HistGradientBoostingRegressor(
@@ -69,11 +72,13 @@ def data_md5(path: str) -> str:
 
 def log_model_run(model, params: dict, metrics: dict, reference: dict, data_path: str) -> str:
     """Log one run (params, metrics, tags, model, reference.json) and return its run_id."""
-    # L1 train.py l. 67-68: URI from the environment, experiment name from params.yaml
+    # L1 train.py l. 67-68: URI from the environment. The lab reads the experiment name from
+    # $EXPERIMENT; here it comes from params.yaml (spec section 3).
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5001"))
     mlflow.set_experiment(params["mlflow"]["experiment"])
     with mlflow.start_run() as run:
-        # L1 l. 73-82: params (model.* and the split dates), metrics, then the three tags
+        # L1 l. 73-82 logs the whole params dict and a 4th tag, data_rows. Here we log only model.*
+        # and the split dates (spec section 5), the metrics, then three tags.
         run_params = {f"model.{key}": value for key, value in params["model"].items()}
         for name, (start, end) in params["split"].items():
             run_params |= {f"split.{name}_start": start, f"split.{name}_end": end}
@@ -86,15 +91,17 @@ def log_model_run(model, params: dict, metrics: dict, reference: dict, data_path
                 "data_md5": data_md5(data_path),
             }
         )
-        # L1 l. 83-90; regression: no pyfunc_predict_fn, the model serves the predicted value
-        df = pd.read_parquet(data_path)
-        X_valid = df.loc[df["split"] == "valid", params["features"]]  # the lab's X_te
+        # L1 l. 83-90; regression: no pyfunc_predict_fn, the model serves the predicted value.
+        # Task 5.2 passes a CSV in the data/truth.csv format, without a split column: read it as CSV
+        # and take every row for the signature and the input example.
+        df = pd.read_csv(data_path) if Path(data_path).suffix == ".csv" else pd.read_parquet(data_path)
+        X = df[params["features"]]
         mlflow.sklearn.log_model(
             model,
             name="model",
             skops_trusted_types=["sklearn.ensemble._hist_gradient_boosting.predictor.TreePredictor"],  # we trust our own model
-            signature=infer_signature(X_valid, model.predict(X_valid)),
-            input_example=X_valid.head(3),
+            signature=infer_signature(X, model.predict(X)),
+            input_example=X.head(3),
         )
         mlflow.log_dict(reference, "reference.json")  # drift reference, a run artifact (S1-MLF p. 20)
     return run.info.run_id
