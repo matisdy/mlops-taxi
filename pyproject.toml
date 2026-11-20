@@ -1,0 +1,27 @@
+[project]
+name = "mlops-taxi"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dvc>=3.67.1",
+    "fastapi>=0.165.0",
+    "httpx>=0.28.1",
+    "mlflow>=3.18.0",
+    "pandas>=3.1.1",
+    "prometheus-client>=0.26.0",
+    "pyarrow>=26.0.1",
+    "pyyaml>=6.0.3",
+    "requests>=2.34.2",
+    "scikit-learn>=1.9.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
