@@ -19,7 +19,7 @@ def register(run_id: str, alias: str) -> str:
     # L1 register.py l. 12-13: a new version of NAME, then the alias moves onto it
     version = mlflow.register_model(f"runs:/{run_id}/model", NAME)
     MlflowClient().set_registered_model_alias(NAME, alias, version.version)
-    return version.version
+    return str(version.version)  # an int with a local sqlite:/// store (task 3.2 fixture), a str via the server
 
 
 if __name__ == "__main__":
