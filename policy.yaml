@@ -1,0 +1,13 @@
+drift:
+  features: [lag_1h, lag_24h]
+  bins: 10
+  window: 480        # 24 h x 20 zones
+  every: 20          # recalcul toutes les 20 prédictions
+  psi_watch: 0.10
+  psi_act: 0.25
+retrain:
+  window_days: 7     # jours rejoués regardés
+  holdout_days: 2    # derniers jours, réservés au gate
+  min_new_days: 3
+  cooldown_days: 7
+  min_gain: 0.05     # le candidat doit réduire la MAE d'au moins 5 %

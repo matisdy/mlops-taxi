@@ -1,0 +1,20 @@
+data:
+  months: ["2020-01", "2020-02", "2020-03"]
+  url: "https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{month}.parquet"
+  raw_dir: data/raw
+  features: data/features.parquet
+  zones: data/zones.json
+  n_zones: 20
+split:
+  train: ["2020-01-08 00:00", "2020-02-16 23:00"]
+  valid: ["2020-02-17 00:00", "2020-02-29 23:00"]
+  replay: ["2020-03-01 00:00", "2020-03-31 23:00"]
+features: [zone, hour, dow, lag_1h, lag_24h, lag_168h]
+target: y
+model:
+  max_iter: 200
+  learning_rate: 0.1
+  random_state: 42
+mlflow:
+  experiment: taxi-demand
+  model_name: taxi-demand
