@@ -1,0 +1,5 @@
+outs:
+- md5: ac4da25717d2280ae39a13bd9378ce55
+  size: 97
+  hash: md5
+  path: zones.json
