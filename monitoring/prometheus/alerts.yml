@@ -1,0 +1,15 @@
+groups:
+  - name: taxi-model
+    rules:
+      - alert: ApiDown
+        expr: up{job="taxi-api"} == 0
+        for: 30s
+        labels: { severity: page }
+        annotations:
+          summary: "the taxi API does not answer /metrics"
+      - alert: InputDrift
+        expr: taxi_input_psi > 0.25
+        for: 1m
+        labels: { severity: page }
+        annotations:
+          summary: "{{ $labels.feature }} drifted (PSI {{ $value | printf \"%.2f\" }})"
