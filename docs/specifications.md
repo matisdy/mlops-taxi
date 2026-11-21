@@ -116,6 +116,8 @@ data/?*
 !data/.gitignore
 ```
 
+`data/?*` plutôt que `data/*` : avec `data/*`, DVC ne voit pas les pointeurs `.dvc` du dossier `data/`, alors que pour Git les deux lignes ignorent les mêmes fichiers. Écart validé le 21/11 (tâche 1.1).
+
 ## 4. Données
 
 - Source : NYC Taxi and Limousine Commission (TLC), Trip Record Data, `https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page`, à citer dans le README et `docs/data.md`. Fichiers : `yellow_tripdata_2020-01.parquet`, `-02`, `-03`.
