@@ -24,10 +24,11 @@ Chaque fichier a 19 colonnes ; on n'en lit que deux (`pd.read_parquet(chemin, co
 - `tpep_pickup_datetime` : date et heure de prise en charge, `datetime64[us]` sans fuseau, en heure locale de New York, sans conversion ;
 - `PULocationID` : zone TLC de prise en charge, `int64`, de 1 à 265.
 
-Aucune valeur manquante dans ces deux colonnes. 275 trajets ont une date avant le 2020-01-01 00:00 ou à partir du 2020-04-01 00:00 (177 dans le fichier de janvier, 44 dans celui de février, 54 dans celui de mars ; extrêmes : 2003-01-01 et 2021-01-02). La section 4 des Spécifications ne garde que les trajets du 2020-01-01 00:00 au 2020-03-31 23:59.
+Aucune valeur manquante dans ces deux colonnes. 275 trajets ont une date avant le 2020-01-01 00:00 ou à partir du 2020-04-01 00:00 (177 dans le fichier de janvier, 44 dans celui de février, 54 dans celui de mars ; extrêmes : 2003-01-01 et 2021-01-02). La section 4 des Spécifications ne garde que les trajets du 2020-01-01 00:00 au 2020-03-31 23:59, dernière minute comprise (3 trajets ont lieu entre 23:59:00 et minuit le 31 mars).
 
 ## Reproduire
 
 - `uv run python download.py` télécharge les fichiers absents de `data/raw/`, ne retélécharge pas un fichier présent et affiche la taille de chaque fichier.
-- Les fichiers bruts ne sont jamais commités (`data/*` dans `.gitignore`) : DVC les suit, avec le pointeur `data/raw.dvc` et le remote local `../dvc-store`, un dossier à côté du dépôt.
-- `uv run dvc pull` les récupère depuis le remote ; `uv run dvc status` vérifie que `data/raw` correspond au pointeur, `uv run dvc status -c` que le cache et le remote sont synchronisés.
+- Les fichiers bruts ne sont jamais commités : DVC les suit, avec le pointeur `data/raw.dvc` et le remote local `../dvc-store`, un dossier à côté du dépôt. Le `.gitignore` les écarte avec `data/?*` et non `data/*` : avec `data/*`, DVC considère le dossier `data/` lui-même comme ignoré et ne trouve plus les pointeurs `data/*.dvc` (écart au §3 accepté le 21/11, tâche 1.1).
+- Sur la machine qui a le dossier `dvc-store` à côté du dépôt, `uv run dvc pull` récupère les fichiers ; `uv run dvc status -c` répond alors « Cache and remote 'local' are in sync. ».
+- Sur une autre machine, ce dossier n'existe pas (DEC-09) : `uv run python download.py`, puis `uv run dvc add data/raw` pour mettre les fichiers dans le cache. `git status --short` ne doit rien afficher : le pointeur `data/raw.dvc` n'a pas changé, donc les octets sont les mêmes ; `uv run dvc status` répond « Data and pipelines are up to date. ». Si `data/raw.dvc` apparaît modifié, les fichiers de la TLC ont changé : ne pas le commiter, prévenir l'équipe. Sans ce `dvc add`, `dvc status` affiche « not in cache », que les fichiers soient identiques ou non, car le cache est vide.

@@ -13,9 +13,9 @@ def download(url: str, path: Path) -> None:
     """Stream url into path through a .part file, renamed only once the download is complete."""
     part = path.with_name(path.name + ".part")
     try:
-        # requests with a timeout (S3 p. 8; S5 p. 30); stream=True reads the body block by block
+        # requests with a timeout (S3 p. 8; S5 p. 30); stream=True and block writes: EC-4, no download in the course
         with requests.get(url, stream=True, timeout=60) as response:
-            response.raise_for_status()  # an HTTP error stops here: no error page saved as Parquet
+            response.raise_for_status()  # S3 p. 8: an HTTP error stops here, no error page saved as Parquet
             with open(part, "wb") as f:
                 for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                     f.write(chunk)
