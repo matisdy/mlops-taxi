@@ -11,7 +11,7 @@ md5 de data/features.parquet : 335cc10a28f85363c7bac4a41a0c58d4
   = md5 du pointeur data/features.parquet.dvc = tag data_md5 du run MLflow de la v1 (docs/evidence/MLFlow run.png).
   Mêmes données que la v1 ; train.fit utilise la configuration et la graine du §5 (random_state=42) : le modèle refait est la v1.
   Contrôle : sa MAE sur le holdout du gate (30-31 mars) vaut 21.6775, exactement mae_production de docs/evidence/incident/decisions.jsonl,
-  et son PSI de fin mars vaut 7.8783 / 7.7563, exactement les valeurs d'Alertmanager (docs/evidence/InputDriftFiring.png).
+  et son PSI de fin mars vaut 7.8783 / 7.7563, exactement les valeurs de la règle InputDrift dans Prometheus (docs/evidence/InputDriftFiring.png).
 
 Commande : $env:OMP_NUM_THREADS=1; uv run python t73_mesures.py   (lancé depuis la racine du dépôt ; script recopié en fin de fichier)
 
@@ -138,3 +138,77 @@ ref = make_reference(train, policy["drift"]["features"], policy["drift"]["bins"]
 last = mar.sort_values(["ts", "zone"]).tail(policy["drift"]["window"])
 for f in policy["drift"]["features"]:
     print(f"{f}: PSI {psi(ref[f], last[f].to_numpy()):.4f}")
+
+===================================== MESURE COMPLÉMENTAIRE (21/11, vers 21:15) =====================================
+§6. Répartition par classe (déciles de l'entraînement, drift.reference_bins) de la dernière fenêtre de 480 lignes,
+    pour expliquer la valeur du PSI (ajoutée après la relecture indépendante du rapport).
+Commande : uv run python t73_classes.py   (depuis la racine du dépôt ; script recopié ci-dessous)
+-- dernière fenêtre de mars (31/03) --
+lag_1h: PSI 7.8783
+  classe [    1.0 ;    34.0]  référence   9.7%   fenêtre  99.4%
+  classe [   34.0 ;    76.0]  référence  10.2%   fenêtre   0.6%
+  classe [   76.0 ;   141.0]  référence  10.0%   fenêtre   0.0%
+  classe [  141.0 ;   203.0]  référence  10.0%   fenêtre   0.0%
+  classe [  203.0 ;   255.0]  référence   9.9%   fenêtre   0.0%
+  classe [  255.0 ;   303.0]  référence  10.2%   fenêtre   0.0%
+  classe [  303.0 ;   355.0]  référence   9.9%   fenêtre   0.0%
+  classe [  355.0 ;   414.0]  référence  10.1%   fenêtre   0.0%
+  classe [  414.0 ;   535.0]  référence  10.0%   fenêtre   0.0%
+  classe [  535.0 ;  1274.0]  référence  10.0%   fenêtre   0.0%
+lag_24h: PSI 7.7563
+  classe [    1.0 ;    34.0]  référence   9.9%   fenêtre  98.8%
+  classe [   34.0 ;    76.0]  référence  10.1%   fenêtre   1.2%
+  classe [   76.0 ;   141.0]  référence   9.9%   fenêtre   0.0%
+  classe [  141.0 ;   205.0]  référence  10.1%   fenêtre   0.0%
+  classe [  205.0 ;   258.0]  référence  10.0%   fenêtre   0.0%
+  classe [  258.0 ;   304.0]  référence   9.9%   fenêtre   0.0%
+  classe [  304.0 ;   357.0]  référence  10.1%   fenêtre   0.0%
+  classe [  357.0 ;   415.0]  référence  10.0%   fenêtre   0.0%
+  classe [  415.0 ;   538.1]  référence  10.1%   fenêtre   0.0%
+  classe [  538.1 ;  1274.0]  référence  10.0%   fenêtre   0.0%
+
+-- dernière fenêtre de février (29/02) --
+lag_1h: PSI 0.0350
+  classe [    1.0 ;    34.0]  référence   9.7%   fenêtre   7.9%
+  classe [   34.0 ;    76.0]  référence  10.2%   fenêtre   9.0%
+  classe [   76.0 ;   141.0]  référence  10.0%   fenêtre  10.6%
+  classe [  141.0 ;   203.0]  référence  10.0%   fenêtre   7.9%
+  classe [  203.0 ;   255.0]  référence   9.9%   fenêtre   9.0%
+  classe [  255.0 ;   303.0]  référence  10.2%   fenêtre  10.6%
+  classe [  303.0 ;   355.0]  référence   9.9%   fenêtre  12.7%
+  classe [  355.0 ;   414.0]  référence  10.1%   fenêtre  10.0%
+  classe [  414.0 ;   535.0]  référence  10.0%   fenêtre  14.0%
+  classe [  535.0 ;  1274.0]  référence  10.0%   fenêtre   8.3%
+lag_24h: PSI 0.0773
+  classe [    1.0 ;    34.0]  référence   9.9%   fenêtre   6.7%
+  classe [   34.0 ;    76.0]  référence  10.1%   fenêtre   8.5%
+  classe [   76.0 ;   141.0]  référence   9.9%   fenêtre   9.6%
+  classe [  141.0 ;   205.0]  référence  10.1%   fenêtre   8.5%
+  classe [  205.0 ;   258.0]  référence  10.0%   fenêtre   6.0%
+  classe [  258.0 ;   304.0]  référence   9.9%   fenêtre  10.2%
+  classe [  304.0 ;   357.0]  référence  10.1%   fenêtre  11.0%
+  classe [  357.0 ;   415.0]  référence  10.0%   fenêtre  10.0%
+  classe [  415.0 ;   538.1]  référence  10.1%   fenêtre  16.5%
+  classe [  538.1 ;  1274.0]  référence  10.0%   fenêtre  12.9%
+
+----- t73_classes.py -----
+"""Mesure complémentaire de la 7.3 : répartition par classe de la dernière fenêtre de mars contre la référence."""
+import os, sys
+sys.path.insert(0, os.getcwd())
+import numpy as np, pandas as pd, yaml
+from drift import make_reference, psi
+
+policy = yaml.safe_load(open("policy.yaml"))
+df = pd.read_parquet("data/features.parquet")
+ref = make_reference(df[df["split"] == "train"], policy["drift"]["features"], policy["drift"]["bins"])
+mar = df[df["split"] == "replay"].sort_values(["ts", "zone"])
+for name, sample in [("dernière fenêtre de mars (31/03)", mar.tail(policy["drift"]["window"])),
+                     ("dernière fenêtre de février (29/02)", df[df["split"] == "valid"].sort_values(["ts", "zone"]).tail(policy["drift"]["window"]))]:
+    print(f"\n-- {name} --")
+    for f in policy["drift"]["features"]:
+        e = np.array(ref[f]["edges"]); s = sample[f].to_numpy()
+        counts = np.histogram(np.clip(s, e[0], e[-1]), e)[0]
+        live = counts / counts.sum()
+        print(f"{f}: PSI {psi(ref[f], s):.4f}")
+        for i in range(len(e) - 1):
+            print(f"  classe [{e[i]:7.1f} ; {e[i+1]:7.1f}]  référence {ref[f]['shares'][i]:6.1%}   fenêtre {live[i]:6.1%}")
