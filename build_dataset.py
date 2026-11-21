@@ -20,15 +20,14 @@ def build_features(trips: pd.DataFrame, params: dict, zones: list[int] | None = 
     end = pd.Period(months[-1], freq="M").end_time.floor("h")  # last day of the last month, 23:00
     hours = pd.date_range(start, end, freq="h")  # no time zone: New York local time, no conversion
 
-    # Hour of each pickup, at the resolution of the grid whatever the input one ([s], [us], [ns]),
-    # so that the reindex below matches. Drops the odd dates of the files (2003 to 2021).
-    ts = trips["tpep_pickup_datetime"].dt.floor("h").dt.as_unit(hours.unit)
+    # Hour of each pickup, then only the period: drops the odd dates of the files (2003 to 2021)
+    ts = trips["tpep_pickup_datetime"].dt.floor("h")
     trips = pd.DataFrame({"zone": trips["PULocationID"], "ts": ts})
     trips = trips[trips["ts"].between(start, end)]
     if not zones:
         train = trips[trips["ts"].between(*params["split"]["train"])]
-        # ids in ascending order first, so that nlargest keeps the smallest id on ties
-        zones = train["zone"].value_counts().sort_index().nlargest(params["data"]["n_zones"]).index
+        # trips per zone, zones in ascending order: nlargest keeps the smallest id on ties
+        zones = train.groupby("zone").size().nlargest(params["data"]["n_zones"]).index
     zones = sorted(int(zone) for zone in zones)
 
     # Trips per (zone, hour) with groupby (L4 join_labels.py l. 19), then the full grid of
@@ -64,7 +63,7 @@ if __name__ == "__main__":
         ignore_index=True,
     )
     df, zones = build_features(trips, params)
-    # Data written by a script, then versioned with dvc add (L1 gen_data.py l. 41-46)
+    # Data written by a script (L1 gen_data.py l. 41-46), then versioned with dvc add (L1 README §1, S1-MLF p. 43)
     df.to_parquet(data["features"], index=False)
     with open(data["zones"], "w") as f:
         json.dump(zones, f)
