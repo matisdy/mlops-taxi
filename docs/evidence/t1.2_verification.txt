@@ -1,0 +1,195 @@
+Tâche 1.2 · vérification du commit 7c1b0a3936483a7d91af3a77be77e326bb2ae624 (branche t1-2-build-dataset) · TZ=Europe/Paris date : Sat Nov 21 05:49:02 CET 2026
+# <dépôt> = cette copie du dépôt (worktree de la branche t1-2-build-dataset) ; <cours> = dossier du cours ; <clone> = dossier temporaire du vérificateur (clone neuf, supprimé après la vérification) ; <utilisateur> = compte macOS
+
+== 1. Tests (dans le dépôt) ==
+$ cd "<dépôt>"
+$ uv run pytest tests/test_features.py -q
+....                                                                     [100%]
+4 passed in 0.66s
+$ uv run pytest tests/test_features.py -v
+============================= test session starts ==============================
+platform darwin -- Python 3.12.15, pytest-9.2.0, pluggy-1.7.0 -- <dépôt>/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: <dépôt>
+configfile: pyproject.toml
+plugins: [liste de 3 extensions pytest omise]
+collecting ... collected 4 items
+
+tests/test_features.py::test_one_row_per_zone_and_hour PASSED            [ 25%]
+tests/test_features.py::test_lag_1h_is_the_trip_count_of_the_previous_hour PASSED [ 50%]
+tests/test_features.py::test_hour_without_trips_is_zero PASSED           [ 75%]
+tests/test_features.py::test_no_train_row_after_the_train_range PASSED   [100%]
+
+============================== 4 passed in 0.31s ===============================
+$ uv run pytest -q
+...........                                                              [100%]
+11 passed in 6.52s
+
+== 2. data/features.parquet et data/zones.json (dans le dépôt) ==
+$ cd "<dépôt>"
+$ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); print(df.shape); print(list(df.columns)); print(sorted(df['split'].unique()))"
+(40320, 9)
+['ts', 'zone', 'hour', 'dow', 'lag_1h', 'lag_24h', 'lag_168h', 'y', 'split']
+['replay', 'train', 'valid']
+$ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); print(df.dtypes)"
+ts          datetime64[us]
+zone                 int64
+hour                 int64
+dow                  int64
+lag_1h             float64
+lag_24h            float64
+lag_168h           float64
+y                  float64
+split                  str
+dtype: object
+$ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); print(df.groupby('split', sort=False)['ts'].agg(['size', 'min', 'max']))"
+         size        min                 max
+split                                       
+train   19200 2020-01-08 2020-02-16 23:00:00
+valid    6240 2020-02-17 2020-02-29 23:00:00
+replay  14880 2020-03-01 2020-03-31 23:00:00
+$ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); print('NaN au total :', int(df.isna().sum().sum())); print('zones :', df['zone'].nunique()); print('heures par zone :', df.groupby('zone').size().unique().tolist()); print('doublons (zone, ts) :', int(df.duplicated(['zone', 'ts']).sum()))"
+NaN au total : 0
+zones : 20
+heures par zone : [2016]
+doublons (zone, ts) : 0
+$ cat data/zones.json
+[48, 68, 79, 107, 132, 141, 142, 161, 162, 163, 164, 170, 186, 230, 234, 236, 237, 238, 239, 249]
+$ uv run python -I -c "import json, pandas as pd; z = json.load(open('data/zones.json')); df = pd.read_parquet('data/features.parquet'); print(len(z), 'éléments, tous de type int :', all(type(x) is int for x in z)); print('mêmes zones que data/features.parquet :', z == sorted(df['zone'].unique().tolist()))"
+20 éléments, tous de type int : True
+mêmes zones que data/features.parquet : True
+# Complément : la colonne min ci-dessus affiche 2020-01-08 sans heure (minuit) ; bornes de chaque split avec l'heure, comparées à params.yaml
+$ uv run python -I -c "import pandas as pd, yaml; df = pd.read_parquet('data/features.parquet'); split = yaml.safe_load(open('params.yaml'))['split']; [print(s, t.min(), '->', t.max(), '| params.yaml :', split[s], '| identiques :', [t.min(), t.max()] == [pd.Timestamp(x) for x in split[s]]) for s, t in df.groupby('split', sort=False)['ts']]"
+train 2020-01-08 00:00:00 -> 2020-02-16 23:00:00 | params.yaml : ['2020-01-08 00:00', '2020-02-16 23:00'] | identiques : True
+valid 2020-02-17 00:00:00 -> 2020-02-29 23:00:00 | params.yaml : ['2020-02-17 00:00', '2020-02-29 23:00'] | identiques : True
+replay 2020-03-01 00:00:00 -> 2020-03-31 23:00:00 | params.yaml : ['2020-03-01 00:00', '2020-03-31 23:00'] | identiques : True
+
+== 3. DVC et Git (dans le dépôt) ==
+$ cd "<dépôt>"
+$ uv run dvc status -c
+Cache and remote 'local' are in sync.
+$ uv run dvc status
+Data and pipelines are up to date.
+$ cat data/features.parquet.dvc data/zones.json.dvc
+outs:
+- md5: 335cc10a28f85363c7bac4a41a0c58d4
+  size: 259454
+  hash: md5
+  path: features.parquet
+outs:
+- md5: ac4da25717d2280ae39a13bd9378ce55
+  size: 97
+  hash: md5
+  path: zones.json
+$ md5 -q data/features.parquet data/zones.json
+335cc10a28f85363c7bac4a41a0c58d4
+ac4da25717d2280ae39a13bd9378ce55
+$ git ls-files | grep -E 'parquet$|zones\.json$'; echo "code de sortie : $?"
+code de sortie : 1
+$ git status --short
+# Complément : pointeurs suivis par Git, adresse du remote, objets présents dans le remote sous les md5 des pointeurs
+$ git ls-files data
+data/features.parquet.dvc
+data/raw.dvc
+data/zones.json.dvc
+$ ls -la "<cours>/dvc-store/files/md5/33/5cc10a28f85363c7bac4a41a0c58d4" "<cours>/dvc-store/files/md5/ac/4da25717d2280ae39a13bd9378ce55"
+-r--r--r--@ 1 <utilisateur>  staff  259454 Nov 21 05:44 <cours>/dvc-store/files/md5/33/5cc10a28f85363c7bac4a41a0c58d4
+-r--r--r--@ 1 <utilisateur>  staff      97 Nov 21 05:44 <cours>/dvc-store/files/md5/ac/4da25717d2280ae39a13bd9378ce55
+$ COLUMNS=200 uv run dvc remote list
+local   <cours>/dvc-store   (default)
+
+== 4. Reproductibilité : clone neuf, uv run dvc pull, uv run python build_dataset.py, uv run dvc status ==
+$ git clone -q --branch t1-2-build-dataset "<dépôt>" "<clone>/clone"
+$ cd "<clone>/clone"
+$ git log --oneline -1
+7c1b0a3 [1.2] tests: build_features sur 9 jours fabriqués pour 2 zones
+$ uv sync --locked
+Using CPython 3.12.15 interpreter at: /opt/homebrew/opt/python@3.12/bin/python3.12
+Creating virtual environment at: .venv
+Resolved 167 packages in 3ms
+Installed 163 packages in 1.06s
+[163 lignes « + paquet==version » omises]
+$ uv run dvc remote modify --local local url "<cours>/dvc-store"
+$ COLUMNS=200 uv run dvc remote list
+local   <cours>/dvc-store   (default)
+$ uv run dvc pull
+A       data/raw/
+A       data/features.parquet
+A       data/zones.json
+6 files fetched and 5 files added
+$ ls -laT data data/raw
+data:
+total 544
+drwxr-xr-x@  8 <utilisateur>  wheel     256 Nov 21 05:51:06 2026 .
+drwxr-xr-x@ 25 <utilisateur>  wheel     800 Nov 21 05:50:57 2026 ..
+-rw-r--r--@  1 <utilisateur>  wheel  259454 Nov 21 05:44:22 2026 features.parquet
+-rw-r--r--@  1 <utilisateur>  wheel      98 Nov 21 05:50:57 2026 features.parquet.dvc
+drwxr-xr-x@  5 <utilisateur>  wheel     160 Nov 21 05:51:06 2026 raw
+-rw-r--r--@  1 <utilisateur>  wheel     104 Nov 21 05:50:57 2026 raw.dvc
+-rw-r--r--@  1 <utilisateur>  wheel      97 Nov 21 05:44:22 2026 zones.json
+-rw-r--r--@  1 <utilisateur>  wheel      88 Nov 21 05:50:57 2026 zones.json.dvc
+
+data/raw:
+total 449504
+drwxr-xr-x@ 5 <utilisateur>  wheel       160 Nov 21 05:51:06 2026 .
+drwxr-xr-x@ 8 <utilisateur>  wheel       256 Nov 21 05:51:06 2026 ..
+-rw-r--r--@ 1 <utilisateur>  wheel  93562858 Nov 21 04:25:12 2026 yellow_tripdata_2020-01.parquet
+-rw-r--r--@ 1 <utilisateur>  wheel  92134881 Nov 21 04:25:18 2026 yellow_tripdata_2020-02.parquet
+-rw-r--r--@ 1 <utilisateur>  wheel  44442590 Nov 21 04:25:21 2026 yellow_tripdata_2020-03.parquet
+$ uv run python build_dataset.py
+data/features.parquet: 40320 rows
+columns: ['ts', 'zone', 'hour', 'dow', 'lag_1h', 'lag_24h', 'lag_168h', 'y', 'split']
+split
+train     19200
+replay    14880
+valid      6240
+data/zones.json: [48, 68, 79, 107, 132, 141, 142, 161, 162, 163, 164, 170, 186, 230, 234, 236, 237, 238, 239, 249]
+$ uv run dvc status
+Data and pipelines are up to date.
+$ git status --short
+# Complément : les deux sorties ont bien été réécrites par build_dataset.py (nouvelle date) et gardent les md5 des pointeurs
+$ ls -laT data
+total 544
+drwxr-xr-x@  8 <utilisateur>  wheel     256 Nov 21 05:51:06 2026 .
+drwxr-xr-x@ 25 <utilisateur>  wheel     800 Nov 21 05:50:57 2026 ..
+-rw-r--r--@  1 <utilisateur>  wheel  259454 Nov 21 05:51:26 2026 features.parquet
+-rw-r--r--@  1 <utilisateur>  wheel      98 Nov 21 05:50:57 2026 features.parquet.dvc
+drwxr-xr-x@  5 <utilisateur>  wheel     160 Nov 21 05:51:06 2026 raw
+-rw-r--r--@  1 <utilisateur>  wheel     104 Nov 21 05:50:57 2026 raw.dvc
+-rw-r--r--@  1 <utilisateur>  wheel      97 Nov 21 05:51:26 2026 zones.json
+-rw-r--r--@  1 <utilisateur>  wheel      88 Nov 21 05:50:57 2026 zones.json.dvc
+$ md5 -q data/features.parquet data/zones.json
+335cc10a28f85363c7bac4a41a0c58d4
+ac4da25717d2280ae39a13bd9378ce55
+
+== Fin : suppression du clone temporaire ==
+$ rm -rf "<clone>/clone" && ls -a "<clone>"
+.
+..
+
+== 5. Complément (orchestrateur, 21/11/2026 06:00) : heure 02:00 du 8 mars 2020, qui vaut 0 d'après le §4 ==
+$ cd "<dépôt>"
+$ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); h = df[df['ts'] == pd.Timestamp('2020-03-08 02:00')]; print(len(h), 'lignes à 2020-03-08 02:00, y :', sorted(h['y'].unique().tolist())); n = df[df['ts'] == pd.Timestamp('2020-03-08 03:00')]; print('à 03:00, lag_1h :', sorted(n['lag_1h'].unique().tolist()))"
+20 lignes à 2020-03-08 02:00, y : [0.0]
+à 03:00, lag_1h : [0.0]
+
+== 6. Après la relecture et la fusion de origin/main : commit 1ac50d8 (orchestrateur, 21/11/2026 06:11) ==
+$ cd "<dépôt>"
+$ uv run pytest tests/test_features.py -v
+tests/test_features.py::test_one_row_per_zone_and_hour PASSED            [ 20%]
+tests/test_features.py::test_lag_1h_is_the_trip_count_of_the_previous_hour PASSED [ 40%]
+tests/test_features.py::test_hour_without_trips_is_zero PASSED           [ 60%]
+tests/test_features.py::test_no_train_row_after_the_train_range PASSED   [ 80%]
+tests/test_features.py::test_lags_never_come_from_another_zone PASSED    [100%]
+============================== 5 passed in 0.32s ===============================
+$ uv run pytest -q
+12 passed in 6.82s
+$ uv run python build_dataset.py
+data/features.parquet: 40320 rows
+$ md5 -q data/features.parquet data/zones.json
+335cc10a28f85363c7bac4a41a0c58d4
+ac4da25717d2280ae39a13bd9378ce55
+$ uv run dvc status
+Data and pipelines are up to date.
+$ uv run dvc status -c
+Cache and remote 'local' are in sync.
