@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
         # str(): an int with a local sqlite:/// store (task 3.2 fixture), a str via the server
         state.update(model=model, version=str(mv.version), reference=reference)
         log.info("loaded models:/%s@%s (version %s)", MODEL_NAME, MODEL_ALIAS, state["version"])
-    except Exception:  # L3 l. 34 expects a missing file; here the alias, an artifact or the server can fail
+    except Exception:  # L3 app.py l. 34 expects a missing file; here the alias, an artifact or the server can fail
         log.exception("no model at models:/%s@%s: running without a model", MODEL_NAME, MODEL_ALIAS)
     yield
     state.clear()
@@ -84,7 +84,8 @@ class PredictRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")  # L3 app.py l. 53: a misspelled field is an error, not silently ignored
 
     zone: int = Field(ge=1, le=265, description="TLC pickup zone (PULocationID)", examples=[237])
-    ts: datetime = Field(description="Start of the hour to predict (New York time)", examples=["2020-03-02T08:00:00"])
+    ts: datetime = Field(description="Start of the hour to predict, New York local time without timezone",
+                         examples=["2020-03-02T08:00:00"])
     # float, not int: JSON 112 becomes 112.0, the float64 that the model signature requires
     lag_1h: float = Field(ge=0, description="Pickups in the zone between ts - 1 h and ts", examples=[112.0])
     lag_24h: float = Field(ge=0, description="Pickups at the same hour, the day before", examples=[98.0])
