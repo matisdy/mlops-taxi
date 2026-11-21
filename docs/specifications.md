@@ -166,7 +166,7 @@ data/?*
 
 ## 7. API (contrat HTTP)
 
-- Lancement : `uv run uvicorn app.main:app --port 8000`, avec un seul worker comme au lab 4.
+- Lancement : `OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000`, avec un seul worker comme au lab 4. `OMP_NUM_THREADS=1` limite scikit-learn à un fil d'exécution par prédiction (S3 p.37) : une prédiction passe d'environ 12,8 ms à 3 ms, assez pour rejouer 10 heures par seconde ; ajout validé le 21/11 (tâche 3.1).
 - Le modèle est chargé au démarrage depuis `models:/taxi-demand@production`, avec son `reference.json` (S3 p.26 ; L1 `score.py` l.18). Changer d'alias impose de relancer l'API (S3 p.41).
 - `GET /health` : 200 `{"status": "ok", "model_version": "1"}` ; 503 `{"status": "degraded", "detail": "model not loaded"}` sans modèle (L3 `app.py` l.118–123).
 - `POST /v1/predict` :
@@ -240,7 +240,7 @@ jobs:
 | Terminal | Commande | Adresse |
 | --- | --- | --- |
 | 1 | `uv run mlflow ui --port 5001 --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts` | `http://127.0.0.1:5001` |
-| 2 | `uv run uvicorn app.main:app --port 8000` | `http://127.0.0.1:8000/docs` |
+| 2 | `OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000` | `http://127.0.0.1:8000/docs` |
 | 3 | `cd monitoring && docker compose up -d` | Prometheus 9090, Alertmanager 9093, Grafana 3000 |
 | 4 | `replay.py`, `check_and_retrain.py`, `promote.py`, `rollback.py` | — |
 
