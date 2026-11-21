@@ -1,0 +1,257 @@
+Tâche 3.1 (API FastAPI) : sorties réelles des contrôles de la Vérification
+==========================================================================
+Date et heure de Paris (TZ=Europe/Paris date) : Sat Nov 21 04:59:41 CET 2026
+Commit (git rev-parse --short HEAD) : 45652a0, branche t3-1-api (parent ec1af57 = main, merge de la PR #3)
+Contrôles faits sur app/main.py du commit 45652a0 (contenu identique au fichier non commité testé ; même blob git dc78f78e9c86593f71c8a44c2a523281d6c7d125).
+Contrôles exécutés le 21/11/2026 de 04:46 à 04:57, heure de Paris (en-têtes date des réponses, en GMT = Paris - 1 h).
+Toutes les commandes sont lancées depuis la racine du dépôt. Les sorties sont copiées telles quelles ;
+seules les fins de ligne CRLF des en-têtes HTTP (curl -i) ont été converties en LF. Les lignes entre parenthèses
+sont des annotations du vérificateur, avec les valeurs réelles relevées (PID, codes de sortie, durée).
+<scratchpad> = dossier temporaire de la session de vérification, hors dépôt.
+Juste avant : uv run pytest -q  ->  7 passed in 10.01s
+
+1. Lancement de l'API (mode normal)
+-----------------------------------
+$ uv run uvicorn app.main:app --port 8000 > <scratchpad>/verif/uvicorn.log 2>&1 &
+(PID de uv : 93726 ; son fils Python uvicorn : 93730)
+$ curl -s --retry 40 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/health
+{"status":"ok","model_version":"1"}
+
+2. Santé du service : 200, modèle version 1
+-------------------------------------------
+$ curl -s -i localhost:8000/health
+HTTP/1.1 200 OK
+date: Sat, 21 Nov 2026 03:46:08 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+x-request-id: d4c7b417
+x-process-time-ms: 1.9
+
+{"status":"ok","model_version":"1"}
+
+3. Métriques avant toute prédiction : PSI à 0.0
+-----------------------------------------------
+$ curl -s localhost:8000/metrics/ | grep -E "^(# TYPE )?taxi_"
+# TYPE taxi_request_seconds histogram
+# TYPE taxi_predictions_total counter
+# TYPE taxi_input_psi gauge
+taxi_input_psi{feature="lag_1h"} 0.0
+taxi_input_psi{feature="lag_24h"} 0.0
+
+4. Prédiction : l'appel exact de la page, puis avec un X-Request-ID imposé
+--------------------------------------------------------------------------
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 237, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 200 OK
+date: Sat, 21 Nov 2026 03:46:18 GMT
+server: uvicorn
+content-length: 91
+content-type: application/json
+x-request-id: 0fcdff74
+x-process-time-ms: 75.0
+
+{"zone":237,"ts":"2020-03-02T08:00:00","prediction":108.17110796903812,"model_version":"1"}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -H 'X-Request-ID: verif-3-1' -d '{"zone": 237, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 200 OK
+date: Sat, 21 Nov 2026 03:46:18 GMT
+server: uvicorn
+content-length: 91
+content-type: application/json
+x-request-id: verif-3-1
+x-process-time-ms: 14.0
+
+{"zone":237,"ts":"2020-03-02T08:00:00","prediction":108.17110796903812,"model_version":"1"}
+
+5. Validation des entrées : champ en trop, lag négatif, zones hors bornes (422), zones limites 1 et 265 (200)
+------------------------------------------------------------------------------------------------------------
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 237, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120, "foo": 1}'
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 109
+content-type: application/json
+x-request-id: 14f02a8a
+x-process-time-ms: 6.2
+
+{"detail":[{"type":"extra_forbidden","loc":["body","foo"],"msg":"Extra inputs are not permitted","input":1}]}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 237, "ts": "2020-03-02T08:00:00", "lag_1h": -1, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 145
+content-type: application/json
+x-request-id: 5e0e3196
+x-process-time-ms: 0.5
+
+{"detail":[{"type":"greater_than_equal","loc":["body","lag_1h"],"msg":"Input should be greater than or equal to 0","input":-1,"ctx":{"ge":0.0}}]}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 0, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 140
+content-type: application/json
+x-request-id: 99343fc2
+x-process-time-ms: 0.4
+
+{"detail":[{"type":"greater_than_equal","loc":["body","zone"],"msg":"Input should be greater than or equal to 1","input":0,"ctx":{"ge":1}}]}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 266, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 422 Unprocessable Entity
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 140
+content-type: application/json
+x-request-id: de6608f8
+x-process-time-ms: 0.4
+
+{"detail":[{"type":"less_than_equal","loc":["body","zone"],"msg":"Input should be less than or equal to 265","input":266,"ctx":{"le":265}}]}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 1, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 200 OK
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 89
+content-type: application/json
+x-request-id: b36eb88f
+x-process-time-ms: 53.7
+
+{"zone":1,"ts":"2020-03-02T08:00:00","prediction":108.93376464270801,"model_version":"1"}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 265, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 200 OK
+date: Sat, 21 Nov 2026 03:46:28 GMT
+server: uvicorn
+content-length: 91
+content-type: application/json
+x-request-id: 41e72cdc
+x-process-time-ms: 12.6
+
+{"zone":265,"ts":"2020-03-02T08:00:00","prediction":108.93376464270801,"model_version":"1"}
+
+6. Métriques après les contrôles 4 et 5, redirection de /metrics
+----------------------------------------------------------------
+C = taxi_predictions_total = 4 prédictions réussies (2 au contrôle 4, zones 1 et 265 au contrôle 5) ;
+taxi_request_seconds_count = 8 car l'histogramme compte aussi les 4 requêtes refusées en 422.
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_"
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.01"} 4.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.025"} 6.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.05"} 6.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.1"} 8.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.2"} 8.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.4"} 8.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.8"} 8.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="1.6"} 8.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="+Inf"} 8.0
+taxi_request_seconds_count{endpoint="/v1/predict"} 8.0
+taxi_request_seconds_sum{endpoint="/v1/predict"} 0.16268604225479066
+taxi_request_seconds_created{endpoint="/v1/predict"} 1.795232778394817e+09
+taxi_predictions_total{model_version="1"} 4.0
+taxi_predictions_created{model_version="1"} 1.795232778393708e+09
+taxi_input_psi{feature="lag_1h"} 0.0
+taxi_input_psi{feature="lag_24h"} 0.0
+
+$ curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" localhost:8000/metrics
+307 http://localhost:8000/metrics/
+
+7. Fenêtre PSI (480 valeurs) : 480 prédictions en deux fois
+-----------------------------------------------------------
+Les 480 requêtes viennent d'une boucle jetable hors dépôt (<scratchpad>/verif/boucle_predictions.py) qui rejoue
+la semaine valid de data/synthetic.parquet (lignes split == "valid", du 2020-01-22 au 2020-01-28, 3 zones,
+triées par ts puis zone comme le rejeu de la tâche 4.2), en attendant replay.py (tâche 4.2, pas encore fusionnée).
+Elle compte les réponses dont le statut n'est pas 200 (« erreurs ») au lieu d'afficher les 480 réponses.
+C = 4, donc N1 = 460 - C = 456 et N2 = 480 - N1 = 24. Le PSI est recalculé toutes les 20 prédictions une fois
+la fenêtre pleine (policy.yaml : window 480, every 20) : il est publié à la 480e prédiction.
+
+7a. N1 = 456 requêtes (décalage 0) : total 460, fenêtre pas encore pleine, PSI encore à 0.0
+$ uv run python <scratchpad>/verif/boucle_predictions.py 456 0
+456 requêtes envoyées (lignes 0 à 455), erreurs : 0
+premier ts : 2020-01-22 00:00:00, dernier ts : 2020-01-28 07:00:00
+
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_(input_psi|predictions_total)"
+taxi_predictions_total{model_version="1"} 460.0
+taxi_input_psi{feature="lag_1h"} 0.0
+taxi_input_psi{feature="lag_24h"} 0.0
+
+7b. N2 = 24 requêtes (décalage 456) : total C + 480 = 484, PSI non nul pour lag_1h et lag_24h
+$ uv run python <scratchpad>/verif/boucle_predictions.py 24 456
+24 requêtes envoyées (lignes 456 à 479), erreurs : 0
+premier ts : 2020-01-28 08:00:00, dernier ts : 2020-01-28 15:00:00
+
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_(input_psi|predictions_total)"
+taxi_predictions_total{model_version="1"} 484.0
+taxi_input_psi{feature="lag_1h"} 0.023899698961372312
+taxi_input_psi{feature="lag_24h"} 0.01539140442892629
+
+8. Mode dégradé : alias absent, pas de modèle
+---------------------------------------------
+Arrêt de l'API du contrôle 1 :
+$ kill 93726        # PID de "uv run uvicorn" (lancé au contrôle 1) ; uv transmet le SIGTERM à son fils Python 93730
+code de sortie de kill : 0
+$ lsof -nP -iTCP:8000 -sTCP:LISTEN
+(sortie vide, code de sortie 1 : port 8000 libre ; PID 93726 et 93730 terminés)
+
+Relance sans modèle :
+$ MODEL_ALIAS=absent uv run uvicorn app.main:app --port 8000 > <scratchpad>/verif/uvicorn_degrade.log 2>&1 &
+(PID de uv : 97761)
+$ curl -s --retry 40 --retry-connrefused --retry-delay 1 -o /dev/null http://127.0.0.1:8000/health
+(code de sortie de curl : 0 ; durée : 41 s)
+(curl --retry traite aussi le 503 comme une erreur passagère : la commande d'attente a réessayé jusqu'au bout,
+d'où les 41 s, puis a rendu la main ; aucune incidence sur le contrôle.)
+
+$ curl -s -i localhost:8000/health
+HTTP/1.1 503 Service Unavailable
+date: Sat, 21 Nov 2026 03:57:15 GMT
+server: uvicorn
+content-length: 49
+content-type: application/json
+x-request-id: d1990fbb
+x-process-time-ms: 0.9
+
+{"status":"degraded","detail":"model not loaded"}
+
+$ curl -s -i -X POST localhost:8000/v1/predict -H 'content-type: application/json' -d '{"zone": 237, "ts": "2020-03-02T08:00:00", "lag_1h": 112, "lag_24h": 98, "lag_168h": 120}'
+HTTP/1.1 503 Service Unavailable
+date: Sat, 21 Nov 2026 03:57:15 GMT
+server: uvicorn
+content-length: 29
+content-type: application/json
+x-request-id: 10be26f7
+x-process-time-ms: 4.9
+
+{"detail":"model not loaded"}
+
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_"
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.01"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.025"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.05"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.1"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.2"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.4"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="0.8"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="1.6"} 1.0
+taxi_request_seconds_bucket{endpoint="/v1/predict",le="+Inf"} 1.0
+taxi_request_seconds_count{endpoint="/v1/predict"} 1.0
+taxi_request_seconds_sum{endpoint="/v1/predict"} 0.004902624990791082
+taxi_request_seconds_created{endpoint="/v1/predict"} 1.795233436363929e+09
+taxi_input_psi{feature="lag_1h"} 0.0
+taxi_input_psi{feature="lag_24h"} 0.0
+
+Arrêt de l'API en mode dégradé :
+$ kill 97761        # PID de "uv run uvicorn" en mode dégradé ; fils Python 97769
+code de sortie de kill : 0
+$ lsof -nP -iTCP:8000 -sTCP:LISTEN
+(sortie vide, code de sortie 1 : port 8000 libre ; PID 97761 et 97769 terminés)
+
+Après la vérification (note de l'orchestrateur)
+-----------------------------------------------
+Commit 70cc23e, à la suite de la relecture : un commentaire (« L3 app.py l. 34 ») et la description du champ ts
+dans /docs (« New York local time without timezone ») ; aucun changement de comportement (git diff 45652a0 70cc23e :
+3 lignes ajoutées, 2 supprimées, toutes dans un commentaire ou une description).
+Essai refait en mémoire sur 70cc23e (TestClient, MLflow officiel en lecture seule) :
+GET /health -> 200 {'status': 'ok', 'model_version': '1'}
+POST /v1/predict -> 200 {'zone': 237, 'ts': '2020-03-02T08:00:00', 'prediction': 108.17110796903812, 'model_version': '1'}
+POST /v1/predict (champ en trop) -> 422
+uv run pytest -q -> 7 passed in 8.56s
