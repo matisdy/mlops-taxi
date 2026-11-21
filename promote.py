@@ -3,6 +3,7 @@ Usage: uv run python promote.py   (then restart the API)
 """
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,7 +23,10 @@ def promote() -> tuple[str, str]:
     # versions as text: a str via the server, an int with a local sqlite store, "1" in /health
     new = str(client.get_model_version_by_alias(NAME, "staging").version)  # the candidate (S5 p. 24)
     old = str(client.get_model_version_by_alias(NAME, "production").version)  # the version served now
-    # a human moves @production (S5 p. 25); the old version stays in the Registry (WRAP p. 7)
+    # a second run would log {"from": "2", "to": "2"}, and rollback.py without VERSION would "go back" to v2
+    if new == old:
+        sys.exit(f"{NAME} v{new} is already @production")
+    # a human moves @production (S5 p. 24-25); the old version stays in the Registry (WRAP p. 7)
     client.set_registered_model_alias(NAME, "production", new)  # L1 register.py l. 13
     # UTC time as in the JSON logs of S4 p. 34; the file is opened in append mode as in L4 app.py l. 49
     line = {"ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "from": old, "to": new}
