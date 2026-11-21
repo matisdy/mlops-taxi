@@ -1,0 +1,67 @@
+# Tâche 4.1 : contrôle « taxi-api up » avec l'API de la 3.1 (tour sur l'API du 21/11/2026)
+
+Branche t4-1-surveillance à jour de main (e8b9d33 : 3.1, 1.1 et OMP_NUM_THREADS=1). Stack lancée depuis monitoring/ (docker compose up -d) depuis 04:28.
+API lancée depuis la copie mlops-taxi-t4.1 : OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000 (serveur MLflow officiel du port 5001, inchangé).
+
+## 1. API en marche
+$ ps -o lstart=,command= -p 17995
+Sat Nov 21 06:21:28 2026  …/mlops-taxi-t4.1/.venv/bin/uvicorn app.main:app --port 8000
+$ head -5 api.log
+INFO:     Started server process [17995]
+INFO:     Waiting for application startup.
+INFO:     loaded models:/taxi-demand@production (version 1)
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+$ curl -s localhost:8000/health
+{"status":"ok","model_version":"1"}
+Trafic d'essai (POST /v1/predict, 180 requêtes en 90 s) : 06:32:29 : 120 réponses 200, 60 erreurs
+Les 60 erreurs sont toutes des 422 pour "zone": 0 (bogue du script d'essai sous zsh, tableau indexé à partir de 1) : l'API refuse une zone hors de 1–265, comme le prévoit le §7.
+
+## 2. Prometheus et Alertmanager pendant que l'API tourne
+Heure de Paris : 2026-11-21 06:33:55
+  job=taxi-api  url=http://host.docker.internal:8000/metrics/  health=up  lastScrape=2026-11-21T05:33:52.068052837Z  lastError=''
+  up{job="taxi-api"}  ->  [({'__name__': 'up', 'job': 'taxi-api'}, '1')]
+  taxi_predictions_total  ->  [({'__name__': 'taxi_predictions_total', 'job': 'taxi-api', 'model_version': '1'}, '120')]
+  sum(rate(taxi_predictions_total[1m]))  ->  [({}, '0')]
+  histogram_quantile(0.95, sum by (le) (rate(taxi_request_seconds_bucket[1m])))  ->  [({}, '0.0095')]
+  taxi_input_psi  ->  [({'__name__': 'taxi_input_psi', 'feature': 'lag_1h', 'job': 'taxi-api'}, '0'), ({'__name__': 'taxi_input_psi', 'feature': 'lag_24h', 'job': 'taxi-api'}, '0')]
+  ALERTS  ->  (aucune série)
+  Alertmanager : aucune alerte active
+
+## 3. Arrêt de l'API et port 8000
+$ kill 17995 ; lsof -nP -iTCP:8000 -sTCP:LISTEN
+(aucune sortie : le port 8000 est libre)
+Arrêt à 06:33:56 ; puis 45 s d'attente pour laisser ApiDown repasser pending puis firing (for: 30s).
+Heure de Paris : 2026-11-21 06:34:41
+  job=taxi-api  url=http://host.docker.internal:8000/metrics/  health=down  lastScrape=2026-11-21T05:34:37.067485303Z  lastError='Get "http://host.docker.internal:8000/metrics/": dial tcp 192.168.65.254:8000: connect: connection refused'
+  up{job="taxi-api"}  ->  [({'__name__': 'up', 'job': 'taxi-api'}, '0')]
+  ALERTS  ->  [({'__name__': 'ALERTS', 'alertname': 'ApiDown', 'alertstate': 'firing', 'job': 'taxi-api', 'severity': 'page'}, '1')]
+  Alertmanager : ApiDown  état=active  début=2026-11-21T05:34:29.132Z  récepteurs=['lab']
+
+## 4. Historique vu par la stack depuis 04:28 (pas de 15 s)
+La stack collecte host.docker.internal:8000 en continu : elle a donc aussi vu les API lancées pendant la vérification de la 3.1 et le tour de la 4.2.
+Heure de Paris : 2026-11-21 06:34:41
+  up{job="taxi-api"} : 1 série(s)
+    up = 0 de 04:28:26 à 04:45:41
+    up = 1 de 04:45:56 à 04:52:11
+    up = 0 de 04:52:26 à 04:55:26
+    up = 1 de 04:55:41 à 04:57:11
+    up = 0 de 04:57:26 à 06:01:41
+    up = 1 de 06:01:56 à 06:11:41
+    up = 0 de 06:11:56 à 06:21:41
+    up = 1 de 06:21:56 à 06:33:56
+    up = 0 de 06:34:11 à 06:34:41
+  ALERTS{alertname="ApiDown"} : 2 série(s)
+    firing = 1 de 04:28:56 à 04:45:41
+    firing = 1 de 04:52:56 à 04:55:26
+    firing = 1 de 04:57:56 à 06:01:41
+    firing = 1 de 06:12:26 à 06:21:41
+    firing = 1 de 06:34:41 à 06:34:41
+    pending = 1 de 04:28:41 à 04:28:41
+    pending = 1 de 04:52:26 à 04:52:41
+    pending = 1 de 04:57:26 à 04:57:41
+    pending = 1 de 06:11:56 à 06:12:11
+    pending = 1 de 06:34:11 à 06:34:26
+  ALERTS{alertname="InputDrift"} : 0 série(s)
+  taxi_input_psi{feature="lag_1h"} : maximum 0.024 sur la période
+  taxi_input_psi{feature="lag_24h"} : maximum 0.021 sur la période
