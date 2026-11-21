@@ -53,7 +53,7 @@ def count(zone, start, end) -> int:
 
 @pytest.fixture(scope="module")
 def built():
-    # module scope as in L3 test_app.py: one call for the four tests, on a copy so TRIPS stays as made
+    # module scope as in L3 test_app.py: one call for the four tests of step 6, on a copy so TRIPS stays as made
     return build_features(TRIPS.copy(), PARAMS)
 
 
@@ -74,6 +74,7 @@ def test_one_row_per_zone_and_hour(built):
     assert pd.api.types.is_string_dtype(features["split"])
     assert features["hour"].tolist() == features["ts"].dt.hour.tolist()
     assert features["dow"].tolist() == features["ts"].dt.day_of_week.tolist()  # Monday = 0
+    assert features.loc[features["ts"] == KEPT[0], "dow"].tolist() == [2, 2]  # 2020-01-08 was a Wednesday
 
 
 def test_lag_1h_is_the_trip_count_of_the_previous_hour(built):
@@ -108,3 +109,13 @@ def test_no_train_row_after_the_train_range(built):
     for name, (start, end) in PARAMS["split"].items():
         ts = features.loc[features["split"] == name, "ts"]
         assert pd.Timestamp(start) <= ts.min() and ts.max() <= pd.Timestamp(end), name
+
+
+def test_lags_never_come_from_another_zone():
+    """With a train range that starts with the period, the first hour of each zone has no past: its lags
+    are missing, never taken from the zone sorted before it (EC-1, groupby("zone") before shift)."""
+    params = {**PARAMS, "split": {**PARAMS["split"], "train": ["2020-01-01 00:00", "2020-01-08 23:00"]}}
+    features, _ = build_features(TRIPS.copy(), params)
+    first_hour = features[features["ts"] == HOURS[0]]
+    assert first_hour["zone"].tolist() == [132, 237]
+    assert first_hour[["lag_1h", "lag_24h", "lag_168h"]].isna().all().all()
