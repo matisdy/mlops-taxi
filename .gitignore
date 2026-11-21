@@ -4,6 +4,6 @@ __pycache__/
 mlflow.db
 mlartifacts/
 mlruns/
-data/*
+data/?*
 !data/*.dvc
 !data/.gitignore

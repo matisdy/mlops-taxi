@@ -111,10 +111,12 @@ __pycache__/
 mlflow.db
 mlartifacts/
 mlruns/
-data/*
+data/?*
 !data/*.dvc
 !data/.gitignore
 ```
+
+`data/?*` plutôt que `data/*` : avec `data/*`, DVC ne voit pas les pointeurs `.dvc` du dossier `data/`, alors que pour Git les deux lignes ignorent les mêmes fichiers. Écart validé le 21/11 (tâche 1.1).
 
 ## 4. Données
 
