@@ -1,0 +1,78 @@
+Tâche 4.2 · Vérification réelle de replay.py sur l'API de la 3.1
+Samedi 21/11/2026, de 06:01 à 06:11 (heure de Paris), copie mlops-taxi-t4.2, branche t4-2-replay au commit b0cf46b
+(replay.py du commit 8f94dab, après fusion de origin/main e8b9d33 : API de la 3.1, 1.1, OMP_NUM_THREADS=1).
+Modèle servi : taxi-demand v1 @production (entraîné sur data/synthetic.parquet en 2.1), serveur MLflow officiel du port 5001.
+
+== API lancée depuis la copie de la 4.2 (§7) ==
+$ OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000
+
+$ curl -s localhost:8000/health
+{"status":"ok","model_version":"1"}  [HTTP 200]
+
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_predictions_total|^taxi_input_psi"      (avant le rejeu)
+taxi_input_psi{feature="lag_1h"} 0.0
+taxi_input_psi{feature="lag_24h"} 0.0
+(taxi_predictions_total n'a encore aucune valeur : aucune prédiction servie)
+
+== Commande de Vérification de la 4.2 (data/truth.csv absent avant) ==
+$ /usr/bin/time -p uv run python replay.py --data data/synthetic.parquet --start 2020-01-22 --end 2020-01-28
+2020-01-22 to 2020-01-28: 168 hours x 3 zones, 10 hours/s, http://127.0.0.1:8000, Ctrl+C to stop
+  2020-01-22 sent 72, ok 72, errors 0
+  2020-01-23 sent 144, ok 144, errors 0
+  2020-01-24 sent 216, ok 216, errors 0
+  2020-01-25 sent 288, ok 288, errors 0
+  2020-01-26 sent 360, ok 360, errors 0
+  2020-01-27 sent 432, ok 432, errors 0
+  2020-01-28 sent 504, ok 504, errors 0
+done: ok 504, errors 0, rows appended to data/truth.csv
+real 18.33
+user 1.68
+sys 0.16
+
+$ wc -l data/truth.csv ; grep -c '^ts,' data/truth.csv
+     505 data/truth.csv          (504 lignes = 7 x 24 x 3, plus l'en-tête)
+1
+
+$ head -4 data/truth.csv                                    (extrait de truth.csv)
+ts,zone,hour,dow,lag_1h,lag_24h,lag_168h,y,prediction,model_version
+2020-01-22T00:00:00,132,0,2,53.0,38.0,34.0,42.0,37.015732373766376,1
+2020-01-22T00:00:00,161,0,2,42.0,23.0,24.0,22.0,24.077757036148263,1
+2020-01-22T00:00:00,237,0,2,52.0,38.0,26.0,33.0,32.63232089880579,1
+
+$ tail -3 data/truth.csv
+2020-01-28T23:00:00,132,23,1,84.0,53.0,53.0,69.0,66.85228121696188,1
+2020-01-28T23:00:00,161,23,1,54.0,40.0,42.0,43.0,43.254155397007885,1
+2020-01-28T23:00:00,237,23,1,69.0,59.0,52.0,51.0,53.787876629129485,1
+
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_predictions_total|^taxi_input_psi|^taxi_request_seconds_count"   (après le rejeu)
+taxi_request_seconds_count{endpoint="/v1/predict"} 504.0
+taxi_predictions_total{model_version="1"} 504.0
+taxi_input_psi{feature="lag_1h"} 0.020998403223018398
+taxi_input_psi{feature="lag_24h"} 0.021418150536346398
+
+Résultat : 504 lignes sans erreur ; taxi_predictions_total passe de rien à 504 ; après 480 prédictions,
+taxi_input_psi n'est plus à 0 (point de Vérification de la 3.1). Durée du rejeu : 18,33 s, démarrage d'uv compris,
+pour 16,8 s au minimum (168 heures à 10 heures simulées par seconde).
+
+== Débit maximal de l'API (mesure demandée par le pilotage, hors Vérification) ==
+Lancé depuis un dossier de travail hors du dépôt (copie de params.yaml), pour ne pas toucher au truth.csv ci-dessus.
+$ uv run --project <copie 4.2> python replay.py --data data/synthetic.parquet --start 2020-02-01 --end 2020-02-01 --hours-per-second 100000
+done: ok 0, errors 0, rows appended to data/truth.csv
+real 1.46                        (démarrage seul : la plage est vide)
+$ uv run --project <copie 4.2> python replay.py --data data/synthetic.parquet --start 2020-01-08 --end 2020-01-28 --hours-per-second 100000
+done: ok 1512, errors 0, rows appended to data/truth.csv
+real 6.24
+$ curl -s localhost:8000/metrics/ | grep -E "^taxi_predictions_total|^taxi_request_seconds_(sum|count)"
+taxi_request_seconds_count{endpoint="/v1/predict"} 2016.0
+taxi_request_seconds_sum{endpoint="/v1/predict"} 6.814742062939331
+taxi_predictions_total{model_version="1"} 2016.0
+
+Calcul : 1 512 requêtes en 6,24 - 1,46 = 4,78 s, soit environ 316 requêtes par seconde (3,2 ms par requête vue du client ;
+3,4 ms en moyenne côté serveur, 6,81 s pour 2 016 requêtes). Un rejeu à 10 heures simulées par seconde sur 20 zones
+demande 200 requêtes par seconde : la cadence tient, et le rejeu de mars (744 heures, 14 880 requêtes) devrait durer
+environ 75 s.
+
+== Fin du tour sur le port 8000 ==
+API arrêtée (« Shutting down ») à 06:11:37.
+$ lsof -nP -iTCP:8000 -sTCP:LISTEN
+(rien ; code de sortie 1 : le port 8000 est libre)
