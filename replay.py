@@ -35,12 +35,8 @@ def one(client: httpx.Client, row: dict, out: csv.writer, stats: dict) -> None:
             out.writerow([body["ts"], body["zone"], int(row["hour"]), int(row["dow"]), body["lag_1h"],
                           body["lag_24h"], body["lag_168h"], float(row["y"]), float(answer["prediction"]),
                           answer["model_version"]])
-        elif stats["err"] == 1:
-            print(f"  first error: {r.status_code} {r.text[:200]}")  # once, so that a 422 explains itself
-    except httpx.HTTPError as e:
+    except httpx.HTTPError:
         stats["err"] += 1
-        if stats["err"] == 1:
-            print(f"  first error: {e!r}")
 
 
 def main() -> None:
@@ -57,12 +53,11 @@ def main() -> None:
     a = ap.parse_args()
 
     df = pd.read_parquet(a.data)
-    # days included: from start 00:00 to end 23:00
-    start, end = pd.Timestamp(a.start), pd.Timestamp(a.end) + pd.Timedelta(days=1)
-    df = df[(df["ts"] >= start) & (df["ts"] < end)]
+    # days included: from start 00:00 to end 23:00, stop is the first hour after the period
+    start, stop = pd.Timestamp(a.start), pd.Timestamp(a.end) + pd.Timedelta(days=1)
+    df = df[(df["ts"] >= start) & (df["ts"] < stop)]
 
     stats = {"ok": 0, "err": 0}
-    TRUTH.parent.mkdir(parents=True, exist_ok=True)
     new = not TRUTH.exists()
     # L4 traffic.py l. 75-80: append to the CSV, header only for a new file, one client for every request
     with open(TRUTH, "a", newline="") as f:
@@ -72,11 +67,11 @@ def main() -> None:
         with httpx.Client(base_url=a.url, timeout=10) as client:
             print(f"{a.start} to {a.end}: {df['ts'].nunique()} hours x {df['zone'].nunique()} zones, "
                   f"{a.hours_per_second:g} hours/s, {a.url}, Ctrl+C to stop")
-            # L4 traffic.py l. 85-92: a simulated hour lasts 1 / hours_per_second s (no sleep if the API
-            # is slow), progress every 24 simulated hours
+            # L4 traffic.py l. 85-92, per simulated hour: cumulative deadline of 1 / hours_per_second s
+            # (while late, no pause until the schedule is caught up), progress every 24 simulated hours
             t = time.time()
-            for i, (ts, hour) in enumerate(df.groupby("ts"), start=1):  # groupby sorts the hours
-                for row in hour.to_dict("records"):
+            for i, (ts, rows) in enumerate(df.groupby("ts"), start=1):  # groupby sorts the hours
+                for row in rows.to_dict("records"):
                     one(client, row, out, stats)
                 t += 1 / a.hours_per_second
                 time.sleep(max(0, t - time.time()))
