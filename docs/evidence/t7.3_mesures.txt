@@ -30,7 +30,7 @@ MAE sur le holdout du gate (30-31 mars, 960 lignes) : 21.6775  (decisions.jsonl 
 2020-03-23  3360  10.616     28.469        27.049         2.682
 2020-03-30   960   9.516     21.677         4.875         2.278
 
-== 3. Prises en charge moyennes par heure et par zone : 17-29 f├®vrier (valid) contre 23-31 mars ==
+== 3. Prises en charge moyennes par heure et par zone : 17-29 février (valid) contre 23-31 mars ==
       fevrier  fin_mars  variation_%
 zone                                
 48      270.7      14.7        -94.6
@@ -53,8 +53,8 @@ zone
 238     184.3      17.9        -90.3
 239     235.3      13.3        -94.3
 249     178.3       4.5        -97.5
-zones en baisse : 20 sur 20 ; variation de -98.3 % ├á -90.3 %
-heures ├á 0 sur 20 zones, 23-31 mars : 9.4% des lignes
+zones en baisse : 20 sur 20 ; variation de -98.3 % à -90.3 %
+heures à 0 sur 20 zones, 23-31 mars : 9.4% des lignes
 
 == 4. Prises en charge par jour, 20 zones, mars 2020 ==
 ts
@@ -90,7 +90,7 @@ ts
 2020-03-30      4630
 2020-03-31      4505
 
-== 5. PSI de la derni├¿re fen├¬tre (480 lignes = 24 h x 20 zones) de mars contre la r├®f├®rence d'entra├«nement ==
+== 5. PSI de la dernière fenêtre (480 lignes = 24 h x 20 zones) de mars contre la référence d'entraînement ==
 lag_1h: PSI 7.8783
 lag_24h: PSI 7.7563
 

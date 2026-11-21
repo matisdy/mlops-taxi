@@ -2,11 +2,11 @@
 
 Incident simulé, joué le samedi 21 novembre 2026 de 16:31 à 16:53 (heure de Paris, tâche 7.2), puis analysé en tâche 7.3. Il est écrit comme une revue sans reproche (S6 p.42) : on décrit ce qui a rendu l'incident possible et ce que nos contrôles ont vu, pas qui a fait quoi.
 
-Chaque fait observé renvoie entre crochets à un fichier de `docs/evidence/` (liste en fin de rapport). Les valeurs de configuration (périodes, seuils, fenêtres) renvoient aux fichiers du contrat : `params.yaml`, `policy.yaml`, `docs/specifications.md` et le code cité.
+Chaque fait observé renvoie entre crochets à un fichier de `docs/evidence/` (liste en fin de rapport). Les valeurs de configuration (périodes, seuils, fenêtres) renvoient aux fichiers du contrat : `params.yaml`, `policy.yaml`, `docs/specifications.md` et le code cité. Ces fichiers n'ont pas changé depuis le commit de l'incident (`298cc99`, branche `t7-2-incident`).
 
 ## 1. Résumé
 
-1. La v1 de `taxi-demand`, entraînée du 8 janvier au 16 février 2020, a reçu en rejeu mars 2020, quand la demande de taxis s'est effondrée [`t7.3_mesures.txt` §4].
+1. La v1 de `taxi-demand`, entraînée du 8 janvier au 16 février 2020, a reçu en rejeu mars 2020, quand la demande de taxis s'est effondrée (`params.yaml`) [`t7.3_mesures.txt` §4].
 2. Le PSI des entrées a été le seul à donner l'alerte : seuil de 0,25 dépassé vers le 13-14 mars simulé, `InputDrift` en firing une minute réelle plus tard, sans action humaine [`March retrain.png`, `InputDriftFiring.png`].
 3. Le dommage est réel : la MAE de la v1 passe de 28,0 à 50,6 entre la semaine du 17 février et celle du 16 mars (+80 %) [`t7.3_mesures.txt` §2].
 4. `check_and_retrain.py` a réentraîné : le candidat bat la production de 81,7 % (3,97 contre 21,68) et devient la v2 `@staging`, promue ensuite par une personne ; le rollback, exercé, prend 22,4 s [`action retrain.png`, `Rollback.png`].
@@ -29,12 +29,12 @@ Les heures réelles sont celles du 21/11/2026, heure de Paris. Le rejeu avance d
 
 | Heure réelle | Date simulée (estimée) | Événement | Couche | Preuve |
 | --- | --- | --- | --- | --- |
-| ≈ 16:34 → 16:35:30 | 17 → 29 février | Rejeu de février, période normale : PSI maximal de 0,07 (`lag_1h`) et 0,095 (`lag_24h`), loin de 0,25. Aucune alerte. Note 1. | 2 · entrées | `Feb Retrain.png` |
+| ≈ 16:33 → 16:35:30 | 17 → 29 février | Rejeu de février, période normale (le PSI bouge à partir de 16:34 environ) : PSI maximal de 0,07 (`lag_1h`) et 0,095 (`lag_24h`), loin de 0,25. Aucune alerte. Note 1. | 2 · entrées | `Feb Retrain.png` |
 | ≈ 16:37 | 1er mars | Début du rejeu de mars. | | `incident/chronologie.md` |
 | ≈ 16:38:50 → 16:39:00 | ≈ 10-11 mars | Pics brefs au-dessus de 0,25 : `lag_1h` à 0,55, puis `lag_24h` vers 0,4. Ils retombent avant la minute exigée par la règle : pas d'alerte. | 2 · entrées | `March retrain.png` |
 | ≈ 16:39:35 → 16:39:55 | ≈ 13-14 mars | **Premier signal** : `lag_1h`, puis `lag_24h`, passent durablement au-dessus de 0,25. Le 13 mars, les prises en charge des 20 zones tombent à 76 754 (102 054 la veille), puis à 48 608 le 14. | 2 · entrées | `March retrain.png`, `t7.3_mesures.txt` §4 |
-| ≈ 16:39:30 | ≈ 13-14 mars | `InputDrift` passe en pending. La capture de 16:45 montre l'alerte active depuis 5 min 34 s pour `lag_1h` et 5 min 24 s pour `lag_24h`. | 2 · entrées | `InputDriftFiring.png`, `incident/chronologie.md` |
-| ≈ 16:40:30 | ≈ 18-19 mars | **`InputDrift` en firing**, après la minute de `for: 1m`. | 2 · entrées | `InputDriftFiring.png`, `incident/chronologie.md` |
+| ≈ 16:39:40 | ≈ 13-14 mars | `InputDrift` passe en pending. La capture de 16:45 montre l'alerte active depuis 5 min 34 s pour `lag_1h` et 5 min 24 s pour `lag_24h`. | 2 · entrées | `InputDriftFiring.png`, `incident/chronologie.md` |
+| ≈ 16:40:40 | ≈ 18-19 mars | **`InputDrift` en firing**, après la minute de `for: 1m`. | 2 · entrées | `InputDriftFiring.png`, `incident/chronologie.md` |
 | ≈ 16:43 | 31 mars, 23:00 | Fin du rejeu. Le PSI culmine vers 8 et finit à 7,88 (`lag_1h`) et 7,76 (`lag_24h`). | 2 · entrées | `March retrain.png`, `InputDriftFiring.png` |
 | 16:46:14 → 16:46:16 | 31 mars, 23:00 | `check_and_retrain.py`, lancé à la main, décide **retrain** : PSI de 7,70 et 7,64 sur les 7 derniers jours, 7 jours de données. Le candidat passe le gate (3,97 contre 21,68) et devient la **v2 `@staging`** à 16:46:16. | 4 · résultat (gate) | `action retrain.png`, `MLFlow Staging.png`, `incident/decisions.jsonl` |
 | ≈ 16:48 | 31 mars, 23:00 | Second lancement aussitôt après : **cooldown**, pas de nouveau candidat. | | `Cooldown.png`, `incident/decisions.jsonl` |
@@ -42,13 +42,13 @@ Les heures réelles sont celles du 21/11/2026, heure de Paris. Le rejeu avance d
 | ≈ 16:51 | | `/health` répond `{"status": "ok", "model_version": "2"}`. | 1 · infrastructure | `Curl new version.png` |
 | ≈ 16:52 | | **Exercice de rollback** : `rollback.py` remet v1 en `@production`. Après la relance de l'API, `/health` affiche v1 au bout de **22,4 s**, pour un objectif de moins de 300 s. État final : v1 en production. | 1 · infrastructure | `Rollback.png`, `incident/chronologie.md` |
 
-**Note 1.** `chronologie.md` fait commencer février à 16:31:30. Sur `Feb Retrain.png`, la jauge reste à 0 jusqu'à environ 16:34, et 13 jours à 2 heures par seconde ne durent que 2 min 36 s. L'heure de 16:31:30 correspond plutôt au démarrage de l'API, qui met la jauge à 0 (Spécifications §7).
+**Note 1.** `chronologie.md` fait commencer février à 16:31:30. Sur `Feb Retrain.png`, la jauge reste à 0 jusqu'à environ 16:34, et 13 jours à 2 heures par seconde ne durent que 2 min 36 s : le rejeu a donc commencé vers 16:33. Les heures de pending et de firing sont déduites de la durée d'activité affichée à 16:45 ; `chronologie.md` donne 16:40:30 pour le firing. L'heure de 16:31:30 correspond plutôt au démarrage de l'API, qui met la jauge à 0 (Spécifications §7).
 
 **Durées clés**
-- **Détection** : le seuil est franchi environ un jour simulé après le début de la chute.
+- **Détection** : le seuil est franchi de 0 à 1 jour simulé après le début de la chute (13 mars).
 - **Alerte** : elle part une minute réelle après le premier signal. Au rythme du rejeu, cela représente environ 5 jours simulés ; en production, ce serait une vraie minute.
-- **Décision** : entre le firing et la décision de réentraîner, il s'écoule environ 5 min 45 s, dont environ 3 minutes entre la fin du rejeu et le lancement de `check_and_retrain.py`.
-- **Promotion** : environ 8 min 25 s après le firing.
+- **Décision** : entre le firing et la décision de réentraîner, il s'écoule environ 5 min 30 s, dont environ 3 minutes entre la fin du rejeu et le lancement de `check_and_retrain.py`.
+- **Promotion** : environ 8 min 15 s après le firing.
 - **Rollback** : 22,4 s.
 
 ## 3. La couche qui a vu en premier, et pourquoi les autres n'ont rien vu
@@ -122,14 +122,14 @@ Le cours rappelle qu'une dérive n'est pas, à elle seule, une raison de réentr
 | Constat | Action | Porteur | Source |
 | --- | --- | --- | --- |
 | La détection est automatique, mais `check_and_retrain.py` se lance à la main (choix déclaré, Spécifications §13). Pendant l'incident, il s'est écoulé 3 minutes entre la fin du rejeu et son lancement. En production, l'alerte peut tomber la nuit [`incident/chronologie.md`]. | **Lancer le contrôle chaque nuit** : un DAG Airflow `check_drift` → `decide` → `dispatch_retrain`, qui déclenche l'entraînement dans GitHub Actions par `workflow_dispatch`. La promotion reste humaine. | Réentraînement (5.2) | S5 p.24, p.28–30 |
-| `decide()` réentraîne sur le seul PSI. Le dommage n'est mesuré qu'ensuite, par le gate. | Garder cet ordre, qui est la chaîne du cours, mais afficher la MAE de production avant d'entraîner, pour que la personne qui promeut voie le dommage. | Réentraînement (5.2) | S5 p.22, p.24 |
+| `decide()` décide de réentraîner sans mesurer le dommage (PSI, jours et cooldown seulement) ; le dommage n'est mesuré qu'ensuite, par le gate. | Garder l'enchaînement contrôle, entraînement, gate (S5 p.24), mais calculer la MAE de production avant d'entraîner, pour répondre à « Does it hurt? » d'abord (S5 p.22). | Réentraînement (5.2) | S5 p.22, p.24 |
 | La couche 4 ne juge qu'à la demande. | Calculer l'erreur par heure dès que `y` arrive, en joignant prédictions et vérité terrain comme le fait `join_labels.py` au lab 4, puis l'afficher dans Grafana. | Surveillance (4.1) | S4 p.34, p.37–38 |
 | La couche 3 n'est pas instrumentée. | Exposer la distribution des prédictions dans un histogramme Prometheus, comme le score au lab 4. | API (3.1) | S4 p.11, p.17 |
 | Le gate ne compare le candidat qu'à la production. Or, sur le 30 et le 31 mars, la simple baseline `lag_168h` (4,88) battait déjà la v1 (21,68) [`t7.3_mesures.txt` §2]. | Ajouter une condition au gate : battre aussi la baseline. La v2 (3,97) l'aurait passée. | Réentraînement (5.2) | inspiré de S1-INTRO p.28 |
 | Le modèle n'est chargé qu'au démarrage de l'API, il faut donc la relancer à la main après une promotion ou un rollback (S3 p.26, p.40–41). Cette relance manuelle compte dans les 22,4 s, contre 6,1 s quand un script relance l'API (5.1) [`Rollback.png`, `t5.1_verification.txt`]. | Décider à l'avance qui relance, et sur quel signal. | Promotion et rollback (5.1) | S6 p.36 |
 | La v2 n'a appris que sur 5 jours de confinement : elle dérivera à son tour quand la demande remontera. | Garder la surveillance du PSI contre la référence de la v2 (l'API charge le `reference.json` de la version servie, Spécifications §7) et réentraîner sur une fenêtre glissante. C'est notre proposition. | Réentraînement (5.2) | Spécifications §7 |
-| Une partie des heures de la chronologie est lue sur des captures. | Exporter les heures exactes depuis l'API de Prometheus (`query_range` sur `taxi_input_psi` et `ALERTS`) au moment de rédiger les preuves. | Surveillance (4.1) | S4 p.17 |
-| En rejeu accéléré, la minute de `for: 1m` vaut environ 5 jours simulés : l'alerte paraît tardive. | Le dire pendant la démo : c'est un effet du rejeu, pas de la règle. | Soutenance (8.1) | Spécifications §8 et §9 |
+| Une partie des heures de la chronologie est lue sur des captures. | Exporter les heures exactes depuis l'API de Prometheus (`query_range` sur `taxi_input_psi` et `ALERTS`) au moment de rédiger les preuves. C'est notre proposition. | Surveillance (4.1) | Prometheus de S4 p.17 |
+| En rejeu accéléré, la minute de `for: 1m` vaut environ 5 jours simulés à 2 h/s [`incident/chronologie.md`], et 25 jours à la vitesse de 10 h/s du §9 : l'alerte paraît tardive. | Le dire pendant la démo : c'est un effet du rejeu, pas de la règle. | Soutenance (8.1) | Spécifications §8 et §9 |
 
 ## Preuves
 
@@ -150,7 +150,7 @@ Le cours rappelle qu'une dérive n'est pas, à elle seule, une raison de réentr
 | `Rollback.png` | `rollback.py` : `/health` affiche v1 après 22,4 s | 7.2 |
 | `MLFlow run.png` | Run de la v1 : commit, `data_md5`, version 1 | 7.1 |
 | `Date over 0.25 March.png` | Répétition du rejeu de mars : requêtes sans erreur du 1er au 18 mars | 7.1 |
-| `Feb PSI.png`, `March PSI.png`, `Firing Alert.png` | Mêmes constats sur la répétition de 7.1 : février calme, mars au-dessus du seuil, alerte en firing aux mêmes valeurs | 7.1 |
+| `Feb PSI.png`, `March PSI.png`, `Firing Alert.png` | Répétition de 7.1 : en février, deux pics brefs de `lag_24h` au-dessus de 0,25 (≈ 0,55 et 0,26) sans alerte grâce au `for: 1m` ; mars au-dessus du seuil ; alerte en firing aux mêmes valeurs (7,88 et 7,76) | 7.1 |
 | `t5.1_verification.txt` | Rollback de la 5.1 avec relance de l'API par script : 6,1 s | 5.1 |
 | `t7.3_mesures.txt` | v1 refaite sur les mêmes données, contrôlée par la MAE du gate et le PSI de la règle `InputDrift`. Contient la MAE par semaine, la baisse par zone, les prises en charge par jour et la répartition par classe du PSI. | 7.3 |
 
