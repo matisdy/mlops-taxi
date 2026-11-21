@@ -172,3 +172,24 @@ $ cd "<dépôt>"
 $ uv run python -I -c "import pandas as pd; df = pd.read_parquet('data/features.parquet'); h = df[df['ts'] == pd.Timestamp('2020-03-08 02:00')]; print(len(h), 'lignes à 2020-03-08 02:00, y :', sorted(h['y'].unique().tolist())); n = df[df['ts'] == pd.Timestamp('2020-03-08 03:00')]; print('à 03:00, lag_1h :', sorted(n['lag_1h'].unique().tolist()))"
 20 lignes à 2020-03-08 02:00, y : [0.0]
 à 03:00, lag_1h : [0.0]
+
+== 6. Après la relecture et la fusion de origin/main : commit 1ac50d8 (orchestrateur, 21/11/2026 06:11) ==
+$ cd "<dépôt>"
+$ uv run pytest tests/test_features.py -v
+tests/test_features.py::test_one_row_per_zone_and_hour PASSED            [ 20%]
+tests/test_features.py::test_lag_1h_is_the_trip_count_of_the_previous_hour PASSED [ 40%]
+tests/test_features.py::test_hour_without_trips_is_zero PASSED           [ 60%]
+tests/test_features.py::test_no_train_row_after_the_train_range PASSED   [ 80%]
+tests/test_features.py::test_lags_never_come_from_another_zone PASSED    [100%]
+============================== 5 passed in 0.32s ===============================
+$ uv run pytest -q
+12 passed in 6.82s
+$ uv run python build_dataset.py
+data/features.parquet: 40320 rows
+$ md5 -q data/features.parquet data/zones.json
+335cc10a28f85363c7bac4a41a0c58d4
+ac4da25717d2280ae39a13bd9378ce55
+$ uv run dvc status
+Data and pipelines are up to date.
+$ uv run dvc status -c
+Cache and remote 'local' are in sync.
