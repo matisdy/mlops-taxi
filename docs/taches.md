@@ -1,6 +1,6 @@
 # Tâches de la roadmap exécutable (version allégée)
 
-Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant avec une IA, soit environ 8 h par personne. Rien à trancher : tout est fixé dans `06_Specifications.md` (copiée dans `docs/specifications.md` du dépôt). « Dépendances » = tâches à terminer avant de commencer ; après le socle (0.2), neuf tâches se font en parallèle. La source de vérité est la roadmap Notion : https://app.notion.com/p/41df4ba8c5228108a2acca91de7bddf0
+Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant avec une IA, soit environ 8 h par personne. Rien à trancher : tout est fixé dans `06_Specifications.md` (copiée dans `docs/specifications.md` du dépôt). « Dépendances » = tâches à terminer avant de commencer ; après le socle (0.2), neuf tâches se font en parallèle. Statuts mis à jour le 21 novembre 2026, jalon J1 atteint. La source de vérité, statuts compris, est la roadmap Notion : https://app.notion.com/p/41df4ba8c5228108a2acca91de7bddf0
 
 ## 0 · Cadrage et socle
 
@@ -21,7 +21,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 0.2 · Socle commun : dépôt, uv, configuration, jeu synthétique et `drift.py`
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Tout de suite, en premier, par une seule personne (environ 1 h 30). C'est la seule tâche qui bloque les autres. (dépendances : —)
 - **Objectif** : Créer le dépôt que tout le monde clone, avec les fichiers du contrat et les fonctions de dérive, pour que les autres tâches démarrent en parallèle.
 - **Exigence du sujet** : Chacun commite, donner l'accès au dépôt (SUJET p.1) ; secrets dans .env, jamais dans Git ; clone neuf fonctionnel (SUJET p.2) ; surveillance de la dérive (SUJET p.1).
@@ -47,7 +47,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 1.1 · `download.py` et DVC : télécharger janvier à mars 2020 et versionner les fichiers bruts
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : Terminé
 - **Démarre** : Après 0.2. (dépendances : 0.2)
 - **Objectif** : Reproduire les données brutes avec un script et les suivre avec DVC, sans les commiter.
 - **Exigence du sujet** : Données NYC TLC yellow, un Parquet par mois ; ne pas commiter les fichiers bruts : un script de téléchargement et DVC les reproduisent ; citer la TLC (SUJET p.1).
@@ -68,7 +68,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 1.2 · `build_dataset.py` : une ligne par zone et par heure, variables décalées et découpage temporel
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 0.2. Le code et les tests s'écrivent sur un petit tableau fait à la main ; l'exécution sur les vrais fichiers attend 1.1. (dépendances : 0.2)
 - **Objectif** : Produire `data/features.parquet` exactement au format de la section 4.
 - **Exigence du sujet** : Prédire les prises en charge d'une zone pour l'heure suivante à partir des heures récentes et du calendrier ; une ligne par zone et par heure ; découper par le temps, jamais au hasard ; une période de référence et une période de dérive (SUJET p.1).
@@ -92,7 +92,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 2.1 · `train.py`, `register.py` et `evaluate.py` : entraîner, tout journaliser dans MLflow, évaluer par semaine
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 2 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 2 h · **Statut** : Terminé
 - **Démarre** : Après 0.2, sur `data/synthetic.parquet` (`drift.py` est déjà dans le socle). (dépendances : 0.2)
 - **Objectif** : Un run MLflow complet, une version enregistrée et un tableau d'évaluation par semaine, d'abord sur le jeu synthétique.
 - **Exigence du sujet** : Chaque run journalise paramètres, métriques, commit Git et empreinte des données ; modèles dans le Registry MLflow ; choisir ses métriques (SUJET p.1).
@@ -117,7 +117,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 3.1 · API FastAPI : chargement de `@production`, `/health`, `/v1/predict`, `/metrics` et PSI glissant
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 2 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 2 h · **Statut** : Terminé
 - **Démarre** : Après 0.2 (`drift.py` est dans le socle). Pour un essai réel il faut un modèle enregistré : celui du jeu synthétique (2.1) suffit. (dépendances : 0.2)
 - **Objectif** : Servir le modèle `@production` selon le contrat HTTP de la section 7, avec les métriques et le PSI des entrées.
 - **Exigence du sujet** : Service FastAPI (SUJET p.1).
@@ -161,7 +161,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 4.1 · Stack de surveillance du lab 4 : Prometheus, Alertmanager, Grafana et alerte de dérive
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 0.2. L'API n'est pas nécessaire pour monter la stack. (dépendances : 0.2)
 - **Objectif** : Une stack qui interroge l'API, déclenche `InputDrift` et affiche le PSI.
 - **Exigence du sujet** : Surveillance de la dérive (SUJET p.1) ; démo avec déclenchement d'une alerte de dérive (SUJET p.2).
@@ -182,7 +182,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 4.2 · `replay.py` : rejouer une période vers l'API et écrire la vérité terrain
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : Terminé
 - **Démarre** : Après 0.2 : se développe sur `data/synthetic.parquet` ; l'essai réel demande l'API (3.1) en marche. (dépendances : 0.2)
 - **Objectif** : Injecter une période (février normal, puis mars 2020) dans l'API en marche, comme `traffic.py` au lab 4.
 - **Exigence du sujet** : Injecter une dérive ; le sujet cite mars à juin 2020 comme exemple de période de dérive (SUJET p.1).
@@ -204,7 +204,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 5.1 · `promote.py` et `rollback.py` : promotion manuelle et retour arrière en moins de 5 minutes
 
-- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : À faire
+- **Jalon** : J1 · Première chaîne (ven. 19h) · **Charge** : 1 h · **Statut** : Terminé
 - **Démarre** : Après 0.2. Pour tester, il faut deux versions enregistrées : lancer deux fois `train.py` sur le jeu synthétique (2.1), ou enregistrer deux `DummyRegressor` de scikit-learn. (dépendances : 0.2)
 - **Objectif** : Changer l'alias `production` dans les deux sens, et mesurer le retour arrière.
 - **Exigence du sujet** : Procédure de rollback ; modèles dans le Registry (SUJET p.1) ; démo avec un rollback (SUJET p.2).
