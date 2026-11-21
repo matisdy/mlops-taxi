@@ -1,0 +1,74 @@
+Tâche 5.1 · Vérification réelle de promote.py et rollback.py sur l'API de la 3.1
+Samedi 21/11/2026, de 06:40 à 06:45 (heure de Paris), copie mlops-taxi-t5.1, branche t5-1-promote-rollback au commit 30d3a77
+(fusion de origin/main e49c739 : API de la 3.1, 1.1, 1.2, 4.2, OMP_NUM_THREADS=1 ; uv run pytest -q : 12 passed).
+Serveur MLflow officiel du port 5001. Avant le contrôle : taxi-demand v1 @production (entraîné sur data/synthetic.parquet en 2.1), aucun @staging, port 8000 libre.
+
+== Deuxième version (Démarre de la 5.1 : deux train.py sur le jeu synthétique) ==
+$ uv run python train.py --data data/synthetic.parquet                (copie propre : git_dirty False)
+🏃 View run sedate-vole-838 at: http://127.0.0.1:5001/#/experiments/1/runs/63263335657a4fcba08aa3075e0557fd
+🧪 View experiment at: http://127.0.0.1:5001/#/experiments/1
+mae_valid 8.2969 | mae_baseline_valid 9.6111
+run_id = 63263335657a4fcba08aa3075e0557fd
+
+$ uv run python register.py 63263335657a4fcba08aa3075e0557fd staging   (lignes INFO et WARNING de MLflow omises)
+Created version '2' of model 'taxi-demand'.
+taxi-demand v2 is now @staging
+
+== API lancée depuis la copie de la 5.1 (§7 ; runbook, étape 4) ==
+$ OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000
+INFO:     Started server process [20598]
+INFO:     loaded models:/taxi-demand@production (version 1)
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+
+$ curl -s localhost:8000/health
+{"status":"ok","model_version":"1"}  [HTTP 200]
+
+== Vérification 1 : promote.py fait passer production à v2 ; après la relance de l'API, /health affiche 2 ==
+$ uv run python promote.py                                            (06:43:03)
+taxi-demand v2 is now @production (was v1)
+Relancer l'API
+
+$ tail -n 1 data/promotions.jsonl
+{"ts": "2026-11-21T05:43:06Z", "from": "1", "to": "2"}
+
+$ curl -s localhost:8000/health                                       (API pas encore relancée)
+{"status":"ok","model_version":"1"}  [HTTP 200]
+(une version chargée ne change pas sans relance : S3 p.41)
+
+Terminal 2 : Ctrl+C, puis la commande de l'étape 4 du runbook
+06:43:14 Ctrl+C (SIGINT) sur l'API, pid 20598
+06:43:15 ancienne API arrêtée
+06:43:15 relance : OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000
+INFO:     Started server process [21047]
+INFO:     loaded models:/taxi-demand@production (version 2)
+
+$ curl -s localhost:8000/health                                       (après la relance)
+{"status":"ok","model_version":"2"}  [HTTP 200]
+
+== Vérification 2 : rollback.py remet v1 ; après la relance, il affiche une durée inférieure à 300 s ==
+$ uv run python rollback.py                                           (06:43:53)
+taxi-demand v1 is now @production
+Relancer l'API
+/health shows v1 after 6.1 s
+(code de sortie 0)
+
+Terminal 2, pendant que rollback.py attend. Un petit script de la session joue ce terminal : il fait Ctrl+C
+dès que « Relancer l'API » s'affiche. Une personne ajouterait son temps de réaction, loin des 300 s.
+06:43:56 « Relancer l'API » lu
+06:43:56 Ctrl+C (SIGINT) sur l'API, pid 21047
+06:43:56 ancienne API arrêtée
+06:43:56 relance : OMP_NUM_THREADS=1 uv run uvicorn app.main:app --port 8000
+INFO:     Started server process [21201]
+INFO:     loaded models:/taxi-demand@production (version 1)
+
+$ curl -s localhost:8000/health                                       (après le retour arrière)
+{"status":"ok","model_version":"1"}  [HTTP 200]
+
+== Fin du tour : production revenue sur v1, API arrêtée ==
+Registry du port 5001 (lecture avec MlflowClient().get_model_version_by_alias) :
+@production -> v1 (run 031e96da412548a594cf42511eea0be4)
+@staging -> v2 (run 63263335657a4fcba08aa3075e0557fd)
+
+06:45:13 Ctrl+C (SIGINT) sur l'API, pid 21201
+$ lsof -nP -iTCP:8000 -sTCP:LISTEN
+(rien : port 8000 libre, API arrêtée)
