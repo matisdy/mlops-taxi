@@ -144,7 +144,7 @@ data/*
 
 - Lancement : `uv run mlflow ui --port 5001 --backend-store-uri sqlite:///mlflow.db --artifacts-destination ./mlartifacts` (L1 README : le port 5000 est pris par AirPlay sur macOS).
 - Expérience `taxi-demand` ; modèle enregistré `taxi-demand` ; alias `production` (servi par l'API) et `staging` (candidat).
-- Modèle : `Pipeline([("pre", ColumnTransformer([("zone", OneHotEncoder(handle_unknown="ignore"), ["zone"])], remainder="passthrough")), ("reg", HistGradientBoostingRegressor(max_iter=200, learning_rate=0.1, random_state=42))])`, entraîné sur `split == "train"` (L1 `train.py` l.40–50, en régression).
+- Modèle : `Pipeline([("pre", ColumnTransformer([("zone", OneHotEncoder(handle_unknown="ignore", sparse_output=False), ["zone"])], remainder="passthrough")), ("reg", HistGradientBoostingRegressor(max_iter=200, learning_rate=0.1, random_state=42))])`, entraîné sur `split == "train"` (L1 `train.py` l.40–50, en régression). `sparse_output=False` : avec 20 zones, la sortie du one-hot serait creuse et `HistGradientBoostingRegressor` la refuse (`TypeError`) ; ajout validé le 20/11 (tâche 2.1, PR #2).
 - Chaque run contient :
   - paramètres : `model.*` de `params.yaml` et les dates de split ;
   - métriques : `mae_valid` et `mae_baseline_valid` (baseline : prédire `lag_168h`, S1-INTRO p.28) ;
