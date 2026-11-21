@@ -1,0 +1,2 @@
+{"now": "2020-03-31T23:00:00", "psi": {"lag_1h": 7.7033, "lag_24h": 7.6443}, "days": 7, "action": "retrain", "mae_production": 21.6775, "mae_candidate": 3.9738, "run_id": "1cfafc7ee99441fb998ac19c65ec26d5", "version": "2"}
+{"now": "2020-03-31T23:00:00", "psi": {"lag_1h": 7.7033, "lag_24h": 7.6443}, "days": 7, "action": "cooldown", "mae_production": null, "mae_candidate": null, "run_id": null, "version": null}
