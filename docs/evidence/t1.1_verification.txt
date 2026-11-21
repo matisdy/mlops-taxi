@@ -1,0 +1,133 @@
+Tâche 1.1 · vérification du commit bb7e45e7ef33b4d842c55e44550c8122768e414b (branche t1-1-download-dvc) · TZ=Europe/Paris date : Sat Nov 21 04:55:32 CET 2026
+
+== 1. État DVC du dépôt : cache, remote et espace de travail (dans le dépôt) ==
+$ cd "<dépôt>"
+$ uv run dvc status -c
+Cache and remote 'local' are in sync.
+$ uv run dvc status
+Data and pipelines are up to date.
+$ uv run dvc remote list
+local   <cours>/dvc-store   (default)
+
+== 2. Fichiers suivis par Git et règles d'exclusion (dans le dépôt) ==
+$ cd "<dépôt>"
+$ git ls-files | grep parquet; echo "code de sortie : $?"
+code de sortie : 1
+$ git ls-files | grep -i -E 'csv|\.env$'; echo "code de sortie : $?"
+docs/evidence/mae_par_semaine.csv
+code de sortie : 0
+$ git status --short
+$ git check-ignore -v data/raw/yellow_tripdata_2020-01.parquet data/raw.dvc; echo "code de sortie : $?"
+.gitignore:7:data/?*	data/raw/yellow_tripdata_2020-01.parquet
+code de sortie : 0
+$ git check-ignore -v --no-index data/raw.dvc
+.gitignore:8:!data/*.dvc	data/raw.dvc
+
+== 3. « Autre machine » simulée par un clone neuf : uv run python download.py puis uv run dvc status ==
+# <dépôt> = cette copie du dépôt ; <cours> = dossier du cours ; <clone> = dossier temporaire du vérificateur (clones neufs, supprimés après la vérification)
+$ git clone -q --branch t1-1-download-dvc "<dépôt>" "<clone>/clone-download"
+$ cd "<clone>/clone-download"
+$ git log --oneline -1
+bb7e45e [1.1] gitignore: data/?* pour que DVC voie les pointeurs (écart §3 accepté)
+$ uv sync --locked
+Using CPython 3.12.15 interpreter at: /opt/homebrew/opt/python@3.12/bin/python3.12
+Creating virtual environment at: .venv
+Resolved 167 packages in 4ms
+Installed 163 packages in 907ms
+[163 lignes « + paquet==version » omises]
+$ uv run python download.py
+data/raw/yellow_tripdata_2020-01.parquet: 93.6 MB, downloaded
+data/raw/yellow_tripdata_2020-02.parquet: 92.1 MB, downloaded
+data/raw/yellow_tripdata_2020-03.parquet: 44.4 MB, downloaded
+$ uv run dvc status
+data/raw.dvc:
+	changed outs:
+		not in cache:       data/raw
+$ git status --short
+
+# Complément ajouté par le vérificateur : diagnostic en lecture seule, même clone, après les commandes ci-dessus
+$ cd "<clone>/clone-download"
+$ uv run dvc data status
+Not in cache:
+  (use "dvc fetch <file>..." to download files)
+        data/raw/
+$ cd "<clone>/clone-download"
+$ uv run dvc data status --unchanged
+Not in cache:
+  (use "dvc fetch <file>..." to download files)
+        data/raw/
+
+DVC unchanged files:
+        data/raw/
+
+== 4. Méthode du cours (L1 README l.149) : clone neuf, uv run dvc pull, puis md5 comparés ==
+$ git clone -q --branch t1-1-download-dvc "<dépôt>" "<clone>/clone-pull"
+$ cd "<clone>/clone-pull"
+$ git log --oneline -1
+bb7e45e [1.1] gitignore: data/?* pour que DVC voie les pointeurs (écart §3 accepté)
+$ uv sync --locked
+Using CPython 3.12.15 interpreter at: /opt/homebrew/opt/python@3.12/bin/python3.12
+Creating virtual environment at: .venv
+Resolved 167 packages in 3ms
+Installed 163 packages in 943ms
+[163 lignes « + paquet==version » omises]
+$ uv run dvc remote modify --local local url "<cours>/dvc-store"
+$ uv run dvc pull
+A       data/raw/
+4 files fetched and 3 files added
+$ ls -la data/raw
+total 449504
+drwxr-xr-x@ 5 matisdouay  wheel       160 Nov 21 04:57 .
+drwxr-xr-x@ 4 matisdouay  wheel       128 Nov 21 04:57 ..
+-rw-r--r--@ 1 matisdouay  wheel  93562858 Nov 21 04:25 yellow_tripdata_2020-01.parquet
+-rw-r--r--@ 1 matisdouay  wheel  92134881 Nov 21 04:25 yellow_tripdata_2020-02.parquet
+-rw-r--r--@ 1 matisdouay  wheel  44442590 Nov 21 04:25 yellow_tripdata_2020-03.parquet
+$ uv run dvc status -c
+Cache and remote 'local' are in sync.
+$ uv run dvc status
+Data and pipelines are up to date.
+$ git status --short
+$ md5 -q "<dépôt>/data/raw/"*.parquet
+607bb8d27c434a1c0f4e60bea721ccb3
+941decb0b9b471d46a8d2b8b73e4029d
+b2acb22cd151e11b3d2e4f275a0d2fa6
+$ md5 -q "<clone>/clone-download/data/raw/"*.parquet
+607bb8d27c434a1c0f4e60bea721ccb3
+941decb0b9b471d46a8d2b8b73e4029d
+b2acb22cd151e11b3d2e4f275a0d2fa6
+$ md5 -q "<clone>/clone-pull/data/raw/"*.parquet
+607bb8d27c434a1c0f4e60bea721ccb3
+941decb0b9b471d46a8d2b8b73e4029d
+b2acb22cd151e11b3d2e4f275a0d2fa6
+$ md5 -q "<dépôt>/data/raw/"*.parquet "<clone>/clone-download/data/raw/"*.parquet "<clone>/clone-pull/data/raw/"*.parquet | sort | uniq -c
+   3 607bb8d27c434a1c0f4e60bea721ccb3
+   3 941decb0b9b471d46a8d2b8b73e4029d
+   3 b2acb22cd151e11b3d2e4f275a0d2fa6
+
+== 5. Non-régression (dans le dépôt) ==
+$ cd "<dépôt>"
+$ uv run pytest -q
+.......                                                                  [100%]
+7 passed in 10.95s
+
+== 3 bis. « Autre machine » : procédure de docs/data.md, avec dvc add pour remplir le cache vide (orchestrateur, 21/11/2026 05:02) ==
+$ git clone -q --branch t1-1-download-dvc "<dépôt>" "<clone>/clone-3bis"
+$ git log --oneline -1
+bb7e45e [1.1] gitignore: data/?* pour que DVC voie les pointeurs (écart §3 accepté)
+$ uv sync --locked  (lignes « + paquet==version » omises)
+Using CPython 3.12.15 interpreter at: /opt/homebrew/opt/python@3.12/bin/python3.12
+Creating virtual environment at: .venv
+Resolved 167 packages in 5ms
+Installed 163 packages in 1.12s
+$ uv run python download.py
+data/raw/yellow_tripdata_2020-01.parquet: 93.6 MB, downloaded
+data/raw/yellow_tripdata_2020-02.parquet: 92.1 MB, downloaded
+data/raw/yellow_tripdata_2020-03.parquet: 44.4 MB, downloaded
+$ uv run dvc status
+data/raw.dvc:
+	changed outs:
+		not in cache:       data/raw
+$ uv run dvc add data/raw
+$ git status --short   (vide : data/raw.dvc inchangé, donc mêmes octets)
+$ uv run dvc status
+Data and pipelines are up to date.
