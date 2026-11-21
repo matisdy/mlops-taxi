@@ -23,7 +23,9 @@ TIMEOUT_SECONDS = 300  # a rollback takes under 5 minutes (S6 p. 36)
 def rollback(target: str) -> float:
     """Point @production at version target, wait until /health serves it, return the seconds it took."""
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5001"))  # L1 register.py l. 8
-    start = time.time()  # the clock starts just before the alias moves (L4 traffic.py l. 73)
+    # the clock starts just before the alias moves (time.time() as in L4 traffic.py l. 73), like timing
+    # `rollout undo` then `rollout status` (S6-LAB TD_kubernetes.ipynb l. 809-819, Q12 l. 847)
+    start = time.time()
     # rollback = move the alias back (S5 p. 25, WRAP p. 7)
     MlflowClient().set_registered_model_alias(NAME, "production", target)  # L1 register.py l. 13
     print(f"{NAME} v{target} is now @production")  # L1 register.py l. 14
@@ -45,10 +47,10 @@ def rollback(target: str) -> float:
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         target = sys.argv[1]
-    elif Path(PROMOTIONS).exists():
-        # the "from" of the last promotion: every promoted version keeps its predecessor (S5 p. 32)
-        target = json.loads(Path(PROMOTIONS).read_text().splitlines()[-1])["from"]
     else:
-        sys.exit(f"{PROMOTIONS} not found: give the VERSION, e.g. uv run python rollback.py 1")
+        lines = Path(PROMOTIONS).read_text().splitlines() if Path(PROMOTIONS).exists() else []
+        if not lines:
+            sys.exit(f"no promotion in {PROMOTIONS}: give the VERSION, e.g. uv run python rollback.py 1")
+        target = json.loads(lines[-1])["from"]  # every promoted version keeps its predecessor (S5 p. 32)
     seconds = rollback(target)
     print(f"/health shows v{target} after {seconds:.1f} s")
