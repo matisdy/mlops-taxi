@@ -44,7 +44,7 @@ Heures réelles du 21/11/2026, heure de Paris. Le rejeu avance de 2 heures simul
 Le cours sépare la surveillance en quatre couches qui répondent chacune à une question (S4 p.11) ; les couches rapides donnent l'alerte, la couche lente juge (S4 p.12).
 
 - **Couche 2, les entrées : elle a vu en premier, et seule.** L'API garde les 480 dernières valeurs de `lag_1h` et `lag_24h` (24 h × 20 zones) et compare leur répartition à celle de l'entraînement (`reference.json`) avec le PSI. Quand la demande s'effondre, les nombres de prises en charge de l'heure précédente et de la veille tombent dans les plus petites classes, presque vides à l'entraînement : le PSI monte jusqu'à 7,88, plus de trente fois le seuil [`InputDriftFiring.png`]. Le contrôle est aussi resté calme quand il le fallait : 0,095 au plus en février [`Feb Retrain.png`], et le pic isolé à 0,55 du 11 mars n'a pas déclenché d'alerte grâce au `for: 1m` [`March retrain.png`].
-- **Couche 1, l'infrastructure : rien à voir.** Le service est resté en marche et rapide : pendant la répétition sur les mêmes données (7.1), toutes les requêtes ont reçu une réponse, sans aucune erreur [`Date over 0.25 March.png`], et `ApiDown` ne s'est pas déclenchée. Une dérive des données ne casse pas la machine.
+- **Couche 1, l'infrastructure : rien à voir.** Le service est resté en marche et rapide : pendant la répétition sur les mêmes données (7.1), les 8 640 requêtes du 1er au 18 mars visibles sur la capture ont toutes reçu une réponse, sans erreur [`Date over 0.25 March.png`], et `ApiDown` ne s'est pas déclenchée. Une dérive des données ne casse pas la machine.
 - **Couche 3, les prédictions : pas instrumentée.** L'API compte les prédictions par version (`taxi_predictions_total`) mais n'expose pas leur distribution, et aucune alerte ne la regarde (Spécifications §7 et §8). Elle aurait pu voir la chute des prévisions, mais pas avant les entrées, dont les prévisions dépendent.
 - **Couche 4, le résultat : elle a jugé, mais plus tard et à la demande.** La vérité terrain `y` n'est connue qu'une heure après chaque prévision ; nous ne calculons pas la MAE en continu (pas de `join_labels.py`, roadmap §6). La MAE n'apparaît que lorsque `check_and_retrain.py` lit `truth.csv`, à 16:46, six minutes après l'alerte [`action retrain.png`]. C'est elle qui confirme le dommage : 21,68 de MAE pour une moyenne de 9,5 prises en charge par heure [`t7.3_mesures.txt` §2].
 
@@ -52,7 +52,7 @@ Le cours sépare la surveillance en quatre couches qui répondent chacune à une
 
 Le cours rappelle qu'une dérive n'est pas en soi une raison de réentraîner : on se pose trois questions dans l'ordre.
 
-1. **Est-ce un bug ? Non.** Une panne de pipeline en amont ressemble à une dérive (S5 p.22), mais elle touche en général une zone, une colonne, ou commence d'un coup. Ici, les 20 zones baissent ensemble, de 90,3 % à 98,3 % entre la fin février et la dernière semaine de mars [`t7.3_mesures.txt` §3], et la chute est progressive : environ 110 000 prises en charge par jour jusqu'au 11 mars, 48 608 le 14, 5 430 le 22 [`t7.3_mesures.txt` §4]. Les données sont celles de la v1 (même md5 `335cc10a…`) et le rejeu n'a eu aucune erreur [`t7.3_mesures.txt`, `Date over 0.25 March.png`]. Le sujet décrit d'ailleurs mars 2020 comme la période où la demande s'est effondrée (`project.pdf` p.1).
+1. **Est-ce un bug ? Non.** Une panne de pipeline en amont ressemble à une dérive (S5 p.22), mais elle touche en général une zone, une colonne, ou commence d'un coup. Ici, les 20 zones baissent ensemble, de 90,3 % à 98,3 % entre la fin février et la dernière semaine de mars [`t7.3_mesures.txt` §3], et la chute est progressive : environ 110 000 prises en charge par jour jusqu'au 11 mars, 48 608 le 14, 5 430 le 22 [`t7.3_mesures.txt` §4]. Les données sont celles de la v1 (même md5 `335cc10a…`) et le rejeu de la répétition n'affiche aucune erreur [`t7.3_mesures.txt`, `Date over 0.25 March.png`]. Le sujet décrit d'ailleurs mars 2020 comme la période où la demande s'est effondrée (`project.pdf` p.1).
 2. **Est-ce que ça fait mal ? Oui.** La MAE par semaine de la v1 [`t7.3_mesures.txt` §2] :
 
    | Semaine du | Prises en charge moyennes par heure | MAE de la v1 | Erreur relative |
@@ -71,3 +71,40 @@ Le cours rappelle qu'une dérive n'est pas en soi une raison de réentraîner : 
 **Donc : réentraîner, puis passer le gate.** Le candidat est entraîné sur le 25 au 29 mars (fenêtre de 7 jours moins les 2 derniers), puis comparé à la production sur le 30 et le 31 mars : MAE de 3,97 contre 21,68, soit 81,7 % de mieux pour un minimum de 5 % [`action retrain.png`]. Il est enregistré en v2 `@staging` [`MLFlow Staging.png`]. Un second lancement immédiat répond « cooldown » : pas de réentraînement en boucle [`Cooldown.png`]. La promotion reste une décision humaine (S5 p.24) : `promote.py` à 16:48:55 [`incident/promotions.jsonl`], puis `/health` affiche la v2 [`Curl new version.png`].
 
 **Pourquoi pas un rollback ?** Revenir en arrière n'aide pas quand c'est le monde qui a changé : la v1 est justement le modèle qui se trompe, et il n'y a pas de version plus ancienne. Le rollback sert quand une nouvelle version fait pire que l'ancienne (`docs/runbook.md`). Nous l'avons exécuté ici comme exercice, pour mesurer la procédure : 22,4 s, bien sous l'objectif de 5 minutes (S6 p.36) [`Rollback.png`]. Dans un vrai incident, on aurait gardé la v2 en production.
+
+## 5. Ce qui a marché, ce qui a manqué, ce qu'on automatiserait ensuite
+
+**Les contrôles qui existaient et ont joué leur rôle** : le PSI des entrées et l'alerte `InputDrift` (détection seule, sans fausse alerte en février) ; le gate (le candidat devait battre la production d'au moins 5 %) ; le cooldown (pas de second réentraînement) ; l'approbation humaine avant la promotion ; le runbook de rollback (22,4 s).
+
+**Ce qui a manqué, et une action par constat** (S6 p.42), avec le rôle qui la porte :
+
+| Constat | Action | Porteur | Source |
+| --- | --- | --- | --- |
+| Le contrôle et le réentraînement se lancent à la main : 3 minutes de rejeu terminé sans que personne ne lance `check_and_retrain.py` ; en production, l'alerte pourrait tomber la nuit sans personne pour réagir [`incident/chronologie.md`]. | **Lancer le contrôle chaque nuit** : un DAG Airflow `check_drift` → `decide` → `dispatch_retrain`, qui déclenche l'entraînement dans GitHub Actions par `workflow_dispatch`. La promotion reste humaine. | Réentraînement (5.2) | S5 p.24, p.28–30 |
+| La couche 4 ne juge qu'à la demande : la MAE n'existe qu'au lancement de `check_and_retrain.py`. | Calculer la MAE par heure dès que `y` arrive, en joignant prédictions et vérité terrain comme `join_labels.py` du lab 4, et l'afficher dans Grafana. | Surveillance (4.1) | S4 p.33–38 |
+| La couche 3 n'est pas instrumentée. | Exposer la distribution des prédictions (histogramme Prometheus), comme le score du lab 4. | API (3.1) | S4 p.11, p.17 |
+| Le gate ne compare le candidat qu'à la production. Or sur le 30 et le 31 mars, la simple baseline `lag_168h` (MAE 4,88) battait déjà la v1 (21,68) [`t7.3_mesures.txt` §2]. | Ajouter au gate une seconde condition : le candidat doit aussi battre la baseline. Ici la v2 (3,97) l'aurait passée. | Réentraînement (5.2) | S1-INTRO p.28 |
+| Promotion et rollback demandent de relancer l'API à la main, parce que le modèle n'est chargé qu'au démarrage (S3 p.41) : la relance à la main compte dans les 22,4 s, contre 6,1 s quand un script relance l'API (5.1) [`Rollback.png`, `t5.1_verification.txt`]. | Décider à l'avance qui relance et sur quel signal, comme le demande le cours pour tout rollback. | Promotion et rollback (5.1) | S6 p.36 |
+| La v2 a appris sur 5 jours de confinement : elle dérivera à son tour quand la demande remontera. | Garder la surveillance du PSI contre la référence de la v2 (l'API charge le `reference.json` de la version servie) et réentraîner sur une fenêtre glissante. | Réentraînement (5.2) | S5 p.24 |
+
+## Preuves
+
+Tous les fichiers sont dans `docs/evidence/`.
+
+| Fichier | Ce qu'il prouve | Tâche |
+| --- | --- | --- |
+| `incident/chronologie.md` | Heures réelles, dates simulées et façon dont chaque heure a été établie | 7.2 |
+| `incident/decisions.jsonl` | Décisions `retrain` (PSI, jours, MAE, run, version) puis `cooldown` | 7.2 |
+| `incident/promotions.jsonl` | Promotion de v1 à v2 à 15:48:55 UTC (16:48:55 à Paris) | 7.2 |
+| `Feb Retrain.png` | PSI de février, au plus 0,095 | 7.2 |
+| `March retrain.png` | PSI de mars : pic bref à 0,55, puis dépassement durable de 0,25 jusqu'à environ 8 | 7.2 |
+| `InputDriftFiring.png` | `InputDrift` en firing pour `lag_1h` (PSI 7,88) et `lag_24h` (PSI 7,76) | 7.2 |
+| `action retrain.png` | Sortie de `check_and_retrain.py` : retrain, gate 3,97 contre 21,68, v2 `@staging` | 7.2 |
+| `MLFlow Staging.png` | v2 enregistrée à 16:46:16 avec l'alias `@staging` | 7.2 |
+| `Cooldown.png` | Second lancement : cooldown | 7.2 |
+| `Curl new version.png` | `/health` sert la v2 après la promotion | 7.2 |
+| `Rollback.png` | `rollback.py` : `/health` affiche v1 après 22,4 s | 7.2 |
+| `MLFlow run.png` | Run de la v1 : commit, `data_md5`, version 1 | 7.1 |
+| `Date over 0.25 March.png` | Répétition du rejeu de mars : requêtes sans erreur, PSI au-dessus du seuil | 7.1 |
+| `t5.1_verification.txt` | Rollback de la 5.1 avec relance de l'API par script : 6,1 s | 5.1 |
+| `t7.3_mesures.txt` | v1 refaite sur les mêmes données (contrôlée par la MAE du gate et le PSI d'Alertmanager), MAE par semaine, baisse par zone, prises en charge par jour | 7.3 |
