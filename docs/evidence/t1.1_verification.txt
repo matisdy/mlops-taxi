@@ -77,11 +77,11 @@ A       data/raw/
 4 files fetched and 3 files added
 $ ls -la data/raw
 total 449504
-drwxr-xr-x@ 5 matisdouay  wheel       160 Nov 21 04:57 .
-drwxr-xr-x@ 4 matisdouay  wheel       128 Nov 21 04:57 ..
--rw-r--r--@ 1 matisdouay  wheel  93562858 Nov 21 04:25 yellow_tripdata_2020-01.parquet
--rw-r--r--@ 1 matisdouay  wheel  92134881 Nov 21 04:25 yellow_tripdata_2020-02.parquet
--rw-r--r--@ 1 matisdouay  wheel  44442590 Nov 21 04:25 yellow_tripdata_2020-03.parquet
+drwxr-xr-x@ 5 <utilisateur>  wheel       160 Nov 21 04:57 .
+drwxr-xr-x@ 4 <utilisateur>  wheel       128 Nov 21 04:57 ..
+-rw-r--r--@ 1 <utilisateur>  wheel  93562858 Nov 21 04:25 yellow_tripdata_2020-01.parquet
+-rw-r--r--@ 1 <utilisateur>  wheel  92134881 Nov 21 04:25 yellow_tripdata_2020-02.parquet
+-rw-r--r--@ 1 <utilisateur>  wheel  44442590 Nov 21 04:25 yellow_tripdata_2020-03.parquet
 $ uv run dvc status -c
 Cache and remote 'local' are in sync.
 $ uv run dvc status
@@ -112,6 +112,7 @@ $ uv run pytest -q
 
 == 3 bis. « Autre machine » : procédure de docs/data.md, avec dvc add pour remplir le cache vide (orchestrateur, 21/11/2026 05:02) ==
 $ git clone -q --branch t1-1-download-dvc "<dépôt>" "<clone>/clone-3bis"
+$ cd "<clone>/clone-3bis"
 $ git log --oneline -1
 bb7e45e [1.1] gitignore: data/?* pour que DVC voie les pointeurs (écart §3 accepté)
 $ uv sync --locked  (lignes « + paquet==version » omises)
@@ -127,7 +128,7 @@ $ uv run dvc status
 data/raw.dvc:
 	changed outs:
 		not in cache:       data/raw
-$ uv run dvc add data/raw
+$ uv run dvc add data/raw   (conseil affiché omis : « To track the changes with git, run: git add data/raw.dvc » et « To enable auto staging, run: dvc config core.autostage true »)
 $ git status --short   (vide : data/raw.dvc inchangé, donc mêmes octets)
 $ uv run dvc status
 Data and pipelines are up to date.
