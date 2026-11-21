@@ -1,0 +1,214 @@
+Tâche 7.3 · Mesures réelles pour le rapport d'incident (étape 4 : « Does it hurt? », S5 p.22)
+Samedi 21/11/2026, vers 20:15 (heure de Paris), PC de Jérémy (Windows), branche t7-3-incident-report, main au commit 761d59e.
+
+Pourquoi : docs/evidence/mae_par_semaine.csv vient du jeu synthétique (tâche 2.1, 3 zones, janvier) ; il fallait la MAE par semaine
+et la baisse par zone sur les vraies données. Rien n'est écrit dans MLflow ni dans data/ par le script ci-dessous.
+
+Préparation (données de la TLC, jamais dans Git) :
+$ uv run python download.py        -> 3 fichiers, 93.6 + 92.1 + 44.4 MB
+$ uv run python build_dataset.py   -> data/features.parquet: 40320 rows (train 19200, valid 6240, replay 14880)
+md5 de data/features.parquet : 335cc10a28f85363c7bac4a41a0c58d4
+  = md5 du pointeur data/features.parquet.dvc = tag data_md5 du run MLflow de la v1 (docs/evidence/MLFlow run.png).
+  Mêmes données que la v1 ; train.fit utilise la configuration et la graine du §5 (random_state=42) : le modèle refait est la v1.
+  Contrôle : sa MAE sur le holdout du gate (30-31 mars) vaut 21.6775, exactement mae_production de docs/evidence/incident/decisions.jsonl,
+  et son PSI de fin mars vaut 7.8783 / 7.7563, exactement les valeurs de la règle InputDrift dans Prometheus (docs/evidence/InputDriftFiring.png).
+
+Commande : $env:OMP_NUM_THREADS=1; uv run python t73_mesures.py   (lancé depuis la racine du dépôt ; script recopié en fin de fichier)
+
+===================================== SORTIE =====================================
+== 1. v1 refaite sur data/features.parquet (md5 335cc10a28f85363c7bac4a41a0c58d4) ==
+mae_valid 28.4983 | mae_baseline_valid 47.8886 | mean_y valid 273.99
+MAE sur le holdout du gate (30-31 mars, 960 lignes) : 21.6775  (decisions.jsonl : mae_production 21.6775)
+
+== 2. MAE par semaine, lignes valid et replay (evaluate.weekly_mae) ==
+      week  rows  mean_y  mae_model  mae_baseline  mae_relative
+2020-02-17  3360 256.476     28.040        49.174         0.109
+2020-02-24  3360 282.954     28.434        43.445         0.100
+2020-03-02  3360 269.144     30.036        34.846         0.112
+2020-03-09  3360 174.808     43.087        98.113         0.246
+2020-03-16  3360  37.535     50.578       137.303         1.347
+2020-03-23  3360  10.616     28.469        27.049         2.682
+2020-03-30   960   9.516     21.677         4.875         2.278
+
+== 3. Prises en charge moyennes par heure et par zone : 17-29 février (valid) contre 23-31 mars ==
+      fevrier  fin_mars  variation_%
+zone                                
+48      270.7      14.7        -94.6
+68      215.0       8.3        -96.1
+79      223.9       6.8        -97.0
+107     200.3      10.4        -94.8
+132     287.0       9.4        -96.7
+141     214.9      14.3        -93.3
+142     270.0      12.3        -95.4
+161     404.5       7.0        -98.3
+162     345.3      10.4        -97.0
+163     257.4       5.3        -97.9
+164     208.2       4.9        -97.6
+170     278.5      11.5        -95.9
+186     322.9      12.0        -96.3
+230     327.0       6.5        -98.0
+234     277.3       6.6        -97.6
+236     378.0      17.3        -95.4
+237     401.0      14.0        -96.5
+238     184.3      17.9        -90.3
+239     235.3      13.3        -94.3
+249     178.3       4.5        -97.5
+zones en baisse : 20 sur 20 ; variation de -98.3 % à -90.3 %
+heures à 0 sur 20 zones, 23-31 mars : 9.4% des lignes
+
+== 4. Prises en charge par jour, 20 zones, mars 2020 ==
+ts
+2020-03-01    102788
+2020-03-02    118223
+2020-03-03    138022
+2020-03-04    140708
+2020-03-05    148773
+2020-03-06    145978
+2020-03-07    119930
+2020-03-08     92689
+2020-03-09    105281
+2020-03-10    111722
+2020-03-11    110658
+2020-03-12    102054
+2020-03-13     76754
+2020-03-14     48608
+2020-03-15     32277
+2020-03-16     36204
+2020-03-17     25367
+2020-03-18     19799
+2020-03-19     16245
+2020-03-20     14680
+2020-03-21      8393
+2020-03-22      5430
+2020-03-23      6802
+2020-03-24      5857
+2020-03-25      5571
+2020-03-26      5270
+2020-03-27      5842
+2020-03-28      3672
+2020-03-29      2657
+2020-03-30      4630
+2020-03-31      4505
+
+== 5. PSI de la dernière fenêtre (480 lignes = 24 h x 20 zones) de mars contre la référence d'entraînement ==
+lag_1h: PSI 7.8783
+lag_24h: PSI 7.7563
+
+===================================== SCRIPT (t73_mesures.py) =====================================
+"""Mesures de la 7.3 : v1 refaite à l'identique, MAE par semaine, baisse par zone, PSI de fin mars.
+Lancé depuis la racine du dépôt : uv run python <ce fichier>. N'écrit rien, n'utilise pas MLflow."""
+import os, sys
+sys.path.insert(0, os.getcwd())
+import pandas as pd, yaml
+from train import load_params, fit, mae, baseline_mae
+from evaluate import weekly_mae
+from drift import make_reference, psi
+
+params = load_params()
+policy = yaml.safe_load(open("policy.yaml"))
+df = pd.read_parquet(params["data"]["features"])
+train = df[df["split"] == "train"]
+model = fit(params, train)  # même configuration et même graine que la v1 (§5)
+
+print("== 1. v1 refaite sur data/features.parquet (md5 335cc10a28f85363c7bac4a41a0c58d4) ==")
+valid = df[df["split"] == "valid"]
+print(f"mae_valid {mae(model, valid):.4f} | mae_baseline_valid {baseline_mae(valid):.4f} | mean_y valid {valid['y'].mean():.2f}")
+holdout = df[(df["ts"] >= "2020-03-30 00:00") & (df["ts"] <= "2020-03-31 23:00")]
+print(f"MAE sur le holdout du gate (30-31 mars, {len(holdout)} lignes) : {mae(model, holdout):.4f}  (decisions.jsonl : mae_production 21.6775)")
+
+print("\n== 2. MAE par semaine, lignes valid et replay (evaluate.weekly_mae) ==")
+print(weekly_mae(model, df).to_string(index=False))
+
+print("\n== 3. Prises en charge moyennes par heure et par zone : 17-29 février (valid) contre 23-31 mars ==")
+feb = valid.groupby("zone")["y"].mean()
+endmar = df[df["ts"] >= "2020-03-23"].groupby("zone")["y"].mean()
+z = pd.DataFrame({"fevrier": feb.round(1), "fin_mars": endmar.round(1)})
+z["variation_%"] = ((z["fin_mars"] / z["fevrier"] - 1) * 100).round(1)
+print(z.to_string())
+print(f"zones en baisse : {(z['variation_%'] < 0).sum()} sur {len(z)} ; variation de {z['variation_%'].min()} % à {z['variation_%'].max()} %")
+print(f"heures à 0 sur 20 zones, 23-31 mars : {(df[df['ts'] >= '2020-03-23']['y'] == 0).mean():.1%} des lignes")
+
+print("\n== 4. Prises en charge par jour, 20 zones, mars 2020 ==")
+mar = df[df["split"] == "replay"]
+daily = mar.groupby(mar["ts"].dt.date)["y"].sum().astype(int)
+print(daily.to_string())
+
+print("\n== 5. PSI de la dernière fenêtre (480 lignes = 24 h x 20 zones) de mars contre la référence d'entraînement ==")
+ref = make_reference(train, policy["drift"]["features"], policy["drift"]["bins"])
+last = mar.sort_values(["ts", "zone"]).tail(policy["drift"]["window"])
+for f in policy["drift"]["features"]:
+    print(f"{f}: PSI {psi(ref[f], last[f].to_numpy()):.4f}")
+
+===================================== MESURE COMPLÉMENTAIRE (21/11, vers 20:30) =====================================
+§6. Répartition par classe (déciles de l'entraînement, drift.reference_bins) de la dernière fenêtre de 480 lignes,
+    pour expliquer la valeur du PSI (ajoutée après la relecture indépendante du rapport).
+Commande : uv run python t73_classes.py   (depuis la racine du dépôt ; script recopié ci-dessous)
+-- dernière fenêtre de mars (31/03) --
+lag_1h: PSI 7.8783
+  classe [    1.0 ;    34.0]  référence   9.7%   fenêtre  99.4%
+  classe [   34.0 ;    76.0]  référence  10.2%   fenêtre   0.6%
+  classe [   76.0 ;   141.0]  référence  10.0%   fenêtre   0.0%
+  classe [  141.0 ;   203.0]  référence  10.0%   fenêtre   0.0%
+  classe [  203.0 ;   255.0]  référence   9.9%   fenêtre   0.0%
+  classe [  255.0 ;   303.0]  référence  10.2%   fenêtre   0.0%
+  classe [  303.0 ;   355.0]  référence   9.9%   fenêtre   0.0%
+  classe [  355.0 ;   414.0]  référence  10.1%   fenêtre   0.0%
+  classe [  414.0 ;   535.0]  référence  10.0%   fenêtre   0.0%
+  classe [  535.0 ;  1274.0]  référence  10.0%   fenêtre   0.0%
+lag_24h: PSI 7.7563
+  classe [    1.0 ;    34.0]  référence   9.9%   fenêtre  98.8%
+  classe [   34.0 ;    76.0]  référence  10.1%   fenêtre   1.2%
+  classe [   76.0 ;   141.0]  référence   9.9%   fenêtre   0.0%
+  classe [  141.0 ;   205.0]  référence  10.1%   fenêtre   0.0%
+  classe [  205.0 ;   258.0]  référence  10.0%   fenêtre   0.0%
+  classe [  258.0 ;   304.0]  référence   9.9%   fenêtre   0.0%
+  classe [  304.0 ;   357.0]  référence  10.1%   fenêtre   0.0%
+  classe [  357.0 ;   415.0]  référence  10.0%   fenêtre   0.0%
+  classe [  415.0 ;   538.1]  référence  10.1%   fenêtre   0.0%
+  classe [  538.1 ;  1274.0]  référence  10.0%   fenêtre   0.0%
+
+-- dernière fenêtre de février (29/02) --
+lag_1h: PSI 0.0350
+  classe [    1.0 ;    34.0]  référence   9.7%   fenêtre   7.9%
+  classe [   34.0 ;    76.0]  référence  10.2%   fenêtre   9.0%
+  classe [   76.0 ;   141.0]  référence  10.0%   fenêtre  10.6%
+  classe [  141.0 ;   203.0]  référence  10.0%   fenêtre   7.9%
+  classe [  203.0 ;   255.0]  référence   9.9%   fenêtre   9.0%
+  classe [  255.0 ;   303.0]  référence  10.2%   fenêtre  10.6%
+  classe [  303.0 ;   355.0]  référence   9.9%   fenêtre  12.7%
+  classe [  355.0 ;   414.0]  référence  10.1%   fenêtre  10.0%
+  classe [  414.0 ;   535.0]  référence  10.0%   fenêtre  14.0%
+  classe [  535.0 ;  1274.0]  référence  10.0%   fenêtre   8.3%
+lag_24h: PSI 0.0773
+  classe [    1.0 ;    34.0]  référence   9.9%   fenêtre   6.7%
+  classe [   34.0 ;    76.0]  référence  10.1%   fenêtre   8.5%
+  classe [   76.0 ;   141.0]  référence   9.9%   fenêtre   9.6%
+  classe [  141.0 ;   205.0]  référence  10.1%   fenêtre   8.5%
+  classe [  205.0 ;   258.0]  référence  10.0%   fenêtre   6.0%
+  classe [  258.0 ;   304.0]  référence   9.9%   fenêtre  10.2%
+  classe [  304.0 ;   357.0]  référence  10.1%   fenêtre  11.0%
+  classe [  357.0 ;   415.0]  référence  10.0%   fenêtre  10.0%
+  classe [  415.0 ;   538.1]  référence  10.1%   fenêtre  16.5%
+  classe [  538.1 ;  1274.0]  référence  10.0%   fenêtre  12.9%
+
+----- t73_classes.py -----
+"""Mesure complémentaire de la 7.3 : répartition par classe de la dernière fenêtre de mars contre la référence."""
+import os, sys
+sys.path.insert(0, os.getcwd())
+import numpy as np, pandas as pd, yaml
+from drift import make_reference, psi
+
+policy = yaml.safe_load(open("policy.yaml"))
+df = pd.read_parquet("data/features.parquet")
+ref = make_reference(df[df["split"] == "train"], policy["drift"]["features"], policy["drift"]["bins"])
+mar = df[df["split"] == "replay"].sort_values(["ts", "zone"])
+for name, sample in [("dernière fenêtre de mars (31/03)", mar.tail(policy["drift"]["window"])),
+                     ("dernière fenêtre de février (29/02)", df[df["split"] == "valid"].sort_values(["ts", "zone"]).tail(policy["drift"]["window"]))]:
+    print(f"\n-- {name} --")
+    for f in policy["drift"]["features"]:
+        e = np.array(ref[f]["edges"]); s = sample[f].to_numpy()
+        counts = np.histogram(np.clip(s, e[0], e[-1]), e)[0]
+        live = counts / counts.sum()
+        print(f"{f}: PSI {psi(ref[f], s):.4f}")
+        for i in range(len(e) - 1):
+            print(f"  classe [{e[i]:7.1f} ; {e[i+1]:7.1f}]  référence {ref[f]['shares'][i]:6.1%}   fenêtre {live[i]:6.1%}")
