@@ -64,7 +64,7 @@ Pendant l'incident : 3,97 pour le candidat contre 21,68 pour la production, soit
 
 Dans le Registry, l'API charge le modèle par son nom et son alias, `models:/taxi-demand@production`. Promouvoir, c'est déplacer l'alias ; l'ancienne version reste dans le Registry ; revenir en arrière, c'est remettre l'alias sur elle (WRAP p.7). Il n'y a rien à reconstruire ni à réentraîner.
 
-`rollback.py` remet l'alias, puis on relance l'API, qui ne charge le modèle qu'au démarrage (S3 p.26 et p.41, EC-6). Pendant l'incident, `/health` a affiché la v1 après 22,4 s, pour un objectif de moins de 5 minutes (S6 p.36, `Rollback.png`). Le chiffre à citer est 22,4 s ; les 6,1 s de la tâche 5.1 correspondent à une relance de l'API par un script, sur des modèles synthétiques.
+`rollback.py` remet l'alias, puis on relance l'API, qui ne charge le modèle qu'au démarrage (S3 p.26 et p.41, EC-6). Pendant l'incident, `/health` a affiché la v1 après 22,4 s, pour un objectif de moins de 5 minutes (S6 p.36, `incident/t7.2_rollback.png`). Le chiffre à citer est 22,4 s ; les 6,1 s de la tâche 5.1 correspondent à une relance de l'API par un script, sur des modèles synthétiques.
 
 ### Pourquoi ni Kubernetes ni Airflow ?
 
@@ -84,13 +84,13 @@ Pour la réaction, `check_and_retrain.py` est lancé à la main, comme le script
 
 **Quel type de dérive ?** Une dérive des données, sur P(X) : les variables décalées s'effondrent avec le confinement (S5 p.6 et p.7). Le PSI seul dit que quelque chose a changé, jamais que le modèle se trompe (WRAP p.31) : c'est la MAE sur les vraies valeurs qui le montre.
 
-**Février a eu un pic de PSI à 0,55 : pourquoi pas d'alerte ?** Pendant la répétition 7.1, le PSI de `lag_24h` a fait un pic au démarrage, puis il est retombé. La règle demande que le PSI reste au-dessus de 0,25 pendant 1 minute (`for: 1m`), donc rien n'est parti. C'est exactement son rôle : ne pas sonner sur un pic (S4 p.43). On dit « aucune fausse alerte », pas « aucun pic » (`Feb PSI.png`).
+**Février a eu un pic de PSI à 0,55 : pourquoi pas d'alerte ?** Pendant la répétition 7.1, le PSI de `lag_24h` a fait un pic au démarrage, puis il est retombé. La règle demande que le PSI reste au-dessus de 0,25 pendant 1 minute (`for: 1m`), donc rien n'est parti. C'est exactement son rôle : ne pas sonner sur un pic (S4 p.43). On dit « aucune fausse alerte », pas « aucun pic » (`repetition/t7.1_psi_fevrier.png`).
 
 **La baseline fait mieux que la v1 sur la fin de mars : pourquoi ne pas la servir ?** Sur les 2 derniers jours, `lag_168h` fait 4,88 contre 21,68 pour la v1, mais le candidat v2 fait encore mieux (3,97). Le gate du cours compare le candidat à la production (S5 p.31). Ajouter la baseline au gate fait partie du mois de plus (`docs/incident_report.md`).
 
 ### Sur la reproductibilité
 
-**Comment sait-on d'où vient une version ?** On versionne trois choses (WRAP p.4 et p.5) : le code (le run MLflow garde `git_commit` et `git_dirty`), les données (`data_md5`, le hash DVC de `features.parquet`) et le modèle (le run et sa version dans le Registry). Preuve : la v1 reconstruite depuis le même code et les mêmes données redonne la même MAE au gate, 21,6775 (`docs/evidence/t7.3_mesures.txt`, `MLFlow run.png`).
+**Comment sait-on d'où vient une version ?** On versionne trois choses (WRAP p.4 et p.5) : le code (le run MLflow garde `git_commit` et `git_dirty`), les données (`data_md5`, le hash DVC de `features.parquet`) et le modèle (le run et sa version dans le Registry). Preuve : la v1 reconstruite depuis le même code et les mêmes données redonne la même MAE au gate, 21,6775 (`docs/evidence/t7.3_mesures.txt`, `repetition/t7.1_run_mlflow_v1.png`).
 
 **Pourquoi DVC alors que les données sont publiques ?** Pour pouvoir répondre à « sur quelles données ce modèle a-t-il été entraîné ? » (S1-MLF p.41) : le pointeur `data/raw.dvc` garde l'empreinte des fichiers. Si la TLC changeait un fichier, `dvc status` le verrait (`docs/data.md`).
 

@@ -8,10 +8,10 @@ Préparation (données de la TLC, jamais dans Git) :
 $ uv run python download.py        -> 3 fichiers, 93.6 + 92.1 + 44.4 MB
 $ uv run python build_dataset.py   -> data/features.parquet: 40320 rows (train 19200, valid 6240, replay 14880)
 md5 de data/features.parquet : 335cc10a28f85363c7bac4a41a0c58d4
-  = md5 du pointeur data/features.parquet.dvc = tag data_md5 du run MLflow de la v1 (docs/evidence/MLFlow run.png).
+  = md5 du pointeur data/features.parquet.dvc = tag data_md5 du run MLflow de la v1 (docs/evidence/repetition/t7.1_run_mlflow_v1.png).
   Mêmes données que la v1 ; train.fit utilise la configuration et la graine du §5 (random_state=42) : le modèle refait est la v1.
   Contrôle : sa MAE sur le holdout du gate (30-31 mars) vaut 21.6775, exactement mae_production de docs/evidence/incident/decisions.jsonl,
-  et son PSI de fin mars vaut 7.8783 / 7.7563, exactement les valeurs de la règle InputDrift dans Prometheus (docs/evidence/InputDriftFiring.png).
+  et son PSI de fin mars vaut 7.8783 / 7.7563, exactement les valeurs de la règle InputDrift dans Prometheus (docs/evidence/incident/t7.2_inputdrift_firing.png).
 
 Commande : $env:OMP_NUM_THREADS=1; uv run python t73_mesures.py   (lancé depuis la racine du dépôt ; script recopié en fin de fichier)
 
