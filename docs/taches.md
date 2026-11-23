@@ -1,6 +1,6 @@
 # Tâches de la roadmap exécutable (version allégée)
 
-Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant avec une IA, soit environ 8 h par personne. Rien à trancher : tout est fixé dans `06_Specifications.md` (copiée dans `docs/specifications.md` du dépôt). « Dépendances » = tâches à terminer avant de commencer ; après le socle (0.2), neuf tâches se font en parallèle. Statuts mis à jour le 21 novembre 2026, jalon J1 atteint. La source de vérité, statuts compris, est la roadmap Notion : https://app.notion.com/p/41df4ba8c5228108a2acca91de7bddf0
+Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant avec une IA, soit environ 8 h par personne. Rien à trancher : tout est fixé dans `06_Specifications.md` (copiée dans `docs/specifications.md` du dépôt). « Dépendances » = tâches à terminer avant de commencer ; après le socle (0.2), neuf tâches se font en parallèle. Statuts au rendu du 23 novembre 2026 : 19 tâches terminées sur 20 ; la 8.3 (séance de questions et répétition) se termine à la soutenance du 24 novembre. La source de vérité, statuts compris, est la roadmap Notion : https://app.notion.com/p/41df4ba8c5228108a2acca91de7bddf0
 
 ## 0 · Cadrage et socle
 
@@ -140,7 +140,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 3.2 · Tests d'intégration et CI GitHub Actions
 
-- **Jalon** : J2 · Composants réels (sam. 19h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J2 · Composants réels (sam. 19h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 2.1 et 3.1 (la fixture réutilise leurs fonctions et `drift.py`). (dépendances : 2.1, 3.1)
 - **Objectif** : Tester l'API avec un vrai modèle enregistré, en local et dans GitHub Actions.
 - **Exigence du sujet** : Tests d'intégration (SUJET p.1) ; livrer tôt et souvent (SUJET p.2, conseils).
@@ -222,7 +222,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 5.2 · `check_and_retrain.py` : décider, réentraîner et passer le gate
 
-- **Jalon** : J3 · Boucle complète (dim. 18h) · **Charge** : 2 h · **Statut** : À faire
+- **Jalon** : J3 · Boucle complète (dim. 18h) · **Charge** : 2 h · **Statut** : Terminé
 - **Démarre** : Après 2.1 (`drift.py` est dans le socle). Se teste avec un `truth.csv` produit par le rejeu (4.2) sur le jeu synthétique, puis sur mars (7.1). (dépendances : 2.1)
 - **Objectif** : Le déclencheur de réentraînement du cours, en un seul script comme au lab.
 - **Exigence du sujet** : Déclencheur de réentraînement ; réagir par réentraînement (SUJET p.1).
@@ -245,7 +245,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 6.1 · README : installation, lancement, démo, rollback, hypothèses
 
-- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 0.2 : se rédige dès vendredi à partir des Spécifications, puis se met à jour quand une commande change. (dépendances : 0.2)
 - **Objectif** : Qu'un clone neuf suivi à la lettre donne un système qui marche.
 - **Exigence du sujet** : Un clone neuf et le README suffisent pour obtenir un système qui fonctionne (SUJET p.2) ; citer la TLC (SUJET p.1).
@@ -262,7 +262,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 6.2 · Tester depuis un clone neuf sur une autre machine
 
-- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 6.1 et 7.2, par un membre qui n'a pas écrit le README, sur sa propre machine. (dépendances : 6.1, 7.2)
 - **Objectif** : Vérifier l'exigence du clone neuf avant le rendu.
 - **Exigence du sujet** : Clone neuf et README → système fonctionnel (SUJET p.2).
@@ -279,7 +279,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 6.3 · Livrer le dépôt avant lundi 23 h 59
 
-- **Jalon** : J6 · Rendu (lun. 23h59) · **Charge** : 0.5 h · **Statut** : À faire
+- **Jalon** : J6 · Rendu (lun. 23h59) · **Charge** : 0.5 h · **Statut** : Terminé
 - **Démarre** : Après 3.2, 6.2 et 7.3. Gel du code à 20:00, rendu visé à 22:30. (dépendances : 3.2, 6.2, 7.3)
 - **Objectif** : Rendre un dépôt complet et accessible, avec un historique où chacun a commité.
 - **Exigence du sujet** : Rendu le 23 novembre à 23 h 59 ; accès au dépôt ; chacun commite ; dépôt et historique notés (SUJET p.1–2).
@@ -299,7 +299,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 7.1 · Intégration sur les vraies données et répétition générale
 
-- **Jalon** : J2 · Composants réels (sam. 19h) · **Charge** : 2 h · **Statut** : À faire
+- **Jalon** : J2 · Composants réels (sam. 19h) · **Charge** : 2 h · **Statut** : Terminé
 - **Démarre** : Après 1.1, 1.2, 2.1, 3.1, 4.1 et 4.2. (dépendances : 1.1, 1.2, 2.1, 3.1, 4.1, 4.2)
 - **Objectif** : Passer du jeu synthétique aux vraies données, mettre v1 en production, puis vérifier que février ne déclenche rien et que mars déclenche `InputDrift`.
 - **Exigence du sujet** : Run avec paramètres, métriques, commit et empreinte des données ; données sous DVC ; modèles dans le Registry ; le système remarque la dérive (SUJET p.1) ; démo avec une alerte de dérive (SUJET p.2).
@@ -320,7 +320,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 7.2 · Jouer l'incident complet et garder les preuves
 
-- **Jalon** : J4 · Incident joué (dim. 21h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J4 · Incident joué (dim. 21h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 5.1, 5.2 et 7.1. (dépendances : 5.1, 5.2, 7.1)
 - **Objectif** : Dérive injectée, détection, réentraînement, promotion puis rollback chronométré, avec une preuve à chaque étape.
 - **Exigence du sujet** : On injecte une dérive, le système la remarque, on réagit par réentraînement ou rollback (SUJET p.1).
@@ -340,7 +340,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 7.3 · Rapport d'incident sous forme de revue sans reproche
 
-- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : À faire
+- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 1.5 h · **Statut** : Terminé
 - **Démarre** : Après 7.2. (dépendances : 7.2)
 - **Objectif** : Le rapport d'incident demandé par le sujet, appuyé sur les preuves de 7.2.
 - **Exigence du sujet** : Rapport d'incident simulé : dérive injectée, détection, réaction (SUJET p.1).
@@ -361,7 +361,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 8.1 · Schéma, diapositives de 10 minutes et script de démo
 
-- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 2.5 h · **Statut** : À faire
+- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 2.5 h · **Statut** : Terminé
 - **Démarre** : Après 0.2 : le schéma, la trame et le script se font à partir des Spécifications ; les captures s'ajoutent après 7.2. (dépendances : 0.2)
 - **Objectif** : Le support de l'oral et le déroulé exact de la démo, avec la structure conseillée par le sujet.
 - **Exigence du sujet** : 10 à 15 minutes de présentation et 5 de questions ; structure conseillée : problème et schéma, démo, choix et compromis, un mois de plus (SUJET p.2).
@@ -379,7 +379,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 8.2 · Préparer les questions : chacun explique sa partie aux autres
 
-- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 3 h · **Statut** : À faire
+- **Jalon** : J5 · Gel du code (lun. 20h) · **Charge** : 3 h · **Statut** : Terminé
 - **Démarre** : Après 7.2. (dépendances : 7.2)
 - **Objectif** : Que chacun puisse répondre sur n'importe quelle partie et défendre un choix sans préparation.
 - **Exigence du sujet** : Le jury peut interroger n'importe quel membre sur n'importe quelle partie ; chacun défend un choix technique sans préparation, 10 % (SUJET p.2).
@@ -396,7 +396,7 @@ Version du 20 novembre 2026 : 20 tâches, 31.5 heures-personne en travaillant av
 
 ### 8.3 · Vidéo de secours, répétition chronométrée et soutenance
 
-- **Jalon** : J7 · Soutenance (mar.) · **Charge** : 2.5 h · **Statut** : À faire
+- **Jalon** : J7 · Soutenance (mar.) · **Charge** : 2.5 h · **Statut** : En cours
 - **Démarre** : Après 7.2 et 8.1. La vidéo se tourne dès que le code est gelé, la répétition le mardi matin. (dépendances : 7.2, 8.1)
 - **Objectif** : Arriver à la soutenance avec une démo répétée et une vidéo de secours testée.
 - **Exigence du sujet** : Démo en direct et plan de secours (SUJET p.2) ; soutenance le 24 novembre (SUJET p.1–2).
