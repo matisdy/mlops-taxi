@@ -73,7 +73,7 @@ curl -s -X POST localhost:8000/v1/predict -H 'Content-Type: application/json' -d
 
 ## Démo
 
-Le déroulé complet, minute par minute, avec l'état de départ et le plan B, est dans `docs/demo_script.md`. Les cinq étapes, dans cet ordre (Spécifications §12) :
+Le déroulé complet, minute par minute, avec l'état de départ et le plan B, est dans `docs/demo_script.md` ; qui tape quoi et ce qui doit s'afficher, dans `docs/fiche_passage.md`. Les cinq étapes, dans cet ordre (Spécifications §12) :
 
 ```bash
 # 0. Avant : rejouer février, la période normale (aucune alerte)
@@ -84,11 +84,11 @@ uv run python replay.py --start 2020-02-17 --end 2020-02-29
 
 # 2. La dérive : rejouer mars 2020
 uv run python replay.py --start 2020-03-01 --end 2020-03-31
-# dans Grafana, le PSI dépasse 0,25 ; dans Prometheus puis Alertmanager, InputDrift passe de pending à firing
+# dans Grafana, le PSI dépasse 0,25 ; dans Prometheus (/alerts), InputDrift passe de pending à firing, puis l'alerte arrive dans Alertmanager
 
 # 3. La décision et le réentraînement
 uv run python check_and_retrain.py
-# {"action": "retrain", …} puis taxi-demand v2 is now @staging
+# {"now": …, "action": "retrain", …} puis taxi-demand v2 is now @staging (MAE … vs … in production)
 
 # 4. La promotion, décidée par une personne
 uv run python promote.py
