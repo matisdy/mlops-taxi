@@ -1,8 +1,10 @@
 Tâche 7.3 · Mesures réelles pour le rapport d'incident (étape 4 : « Does it hurt? », S5 p.22)
 Samedi 21/11/2026, vers 20:15 (heure de Paris), PC de Jérémy (Windows), branche t7-3-incident-report, main au commit 761d59e.
 
-Pourquoi : docs/evidence/mae_par_semaine.csv vient du jeu synthétique (tâche 2.1, 3 zones, janvier) ; il fallait la MAE par semaine
-et la baisse par zone sur les vraies données. Rien n'est écrit dans MLflow ni dans data/ par le script ci-dessous.
+Pourquoi : au moment de la 7.3, docs/evidence/mae_par_semaine.csv venait encore du jeu synthétique (tâche 2.1, 3 zones, janvier) ;
+il fallait la MAE par semaine et la baisse par zone sur les vraies données. Rien n'est écrit dans MLflow ni dans data/ par le script ci-dessous.
+Depuis la tâche 8.3 (lundi 23/11), docs/evidence/mae_par_semaine.csv vient des vraies données : uv run python evaluate.py production,
+sur la v1 entraînée sur data/features.parquet (même md5). Ses 7 lignes sont identiques au tableau de la section 2 ci-dessous.
 
 Préparation (données de la TLC, jamais dans Git) :
 $ uv run python download.py        -> 3 fichiers, 93.6 + 92.1 + 44.4 MB
