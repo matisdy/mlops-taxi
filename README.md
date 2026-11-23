@@ -122,11 +122,11 @@ La CI GitHub Actions (`.github/workflows/ci.yml`) lance `uv sync --locked` puis 
 
 ## Hypothèses
 
-- Le groupe compte quatre membres ; chacun commite.
+- Le groupe compte cinq membres ; chacun commite.
 - La dérive injectée est la période de mars 2020, rejouée dans l'API en marche. Le sujet cite mars 2020 comme période de dérive, et le cours décrit le projet avec « a drift period that you inject » (S5 p.33).
 - `check_and_retrain.py` est lancé à la main, comme le script unique du lab (S5 p.33) ; l'alerte, elle, se déclenche seule.
 - La grille détaillée annoncée par le sujet n'y figure pas : nous suivons ce qui est écrit.
 
 ## Membres du groupe
 
-Jérémy Caillaud, Elimane Diallo, Matis Douay et Driss Haddadi (Albert School, M2, cours MLOps & Model Deployment, 2026).
+Jérémy Caillaud, Elimane Diallo, Matis Douay, Driss Haddadi et Hugo Van Zuylen (Albert School, M2, cours MLOps & Model Deployment, 2026).
