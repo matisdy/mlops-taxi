@@ -129,4 +129,4 @@ La CI GitHub Actions (`.github/workflows/ci.yml`) lance `uv sync --locked` puis 
 
 ## Membres du groupe
 
-Jérémy Caillaud, Elimane Diallo, Matis Douay, Driss Haddadi et Hugo Van Zuylen (Albert School, M2, cours MLOps & Model Deployment, 2026).
+Jérémy Caillaud, Elimane Diallo, Matis Douay, Driss Haddadi et Hugo van Zuylen (Albert School, M2, cours MLOps & Model Deployment, 2026).
